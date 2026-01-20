@@ -3,11 +3,12 @@ import { Layout } from "./components/Layout";
 import { Card } from "./components/Card";
 // import { useHardware } from "./hooks/useHardware";
 import { listen } from "@tauri-apps/api/event";
-import { Thermometer, Droplets, Zap, X } from "lucide-react";
+import { X } from "lucide-react";
 import { TopologyMap } from "./components/TopologyMap";
 import { RGBPanel } from "./components/RGBPanel";
 import { IoTMonitor } from "./components/IoTMonitor";
 import { DriverHub } from "./components/DriverHub";
+import { EnvironmentFooter } from "./components/EnvironmentFooter";
 import { useStore } from "./store";
 
 function App() {
@@ -67,44 +68,26 @@ function App() {
               </div>
             </div>
 
-            {/* Internal: RGB (Flex 1) */}
-            <div className="flex-1 min-h-0">
+
+            {/* Internal: RGB (Auto Height) */}
+            <div className="shrink-0">
               <RGBPanel />
             </div>
 
-            {/* Internal: Driver (Flex 0.8) */}
+            {/* Internal: Driver (Fixed) */}
             <div className="shrink-0">
               <DriverHub />
             </div>
 
-            {/* Internal: Telemetry (Flex 1) */}
-            <div className="flex-1 min-h-0">
+            {/* Internal: Telemetry (Flex - Fills remaining) */}
+            <div className="flex-1 min-h-0 relative">
               <IoTMonitor />
             </div>
           </Card>
 
+
           {/* CONTAINER 2: IoT Footer (Fixed Height) */}
-          <Card className="flex-none h-auto py-3 px-3 rounded-xl border-l border-t border-t-white/20 border-l-white/20 border-r-0 border-b-0 bg-black/40 backdrop-blur-3xl grid grid-cols-3 divide-x divide-white/10 relative overflow-hidden items-center">
-            <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-30" />
-
-            <div className="relative z-10 flex flex-col items-center justify-center p-1 h-full gap-0.5">
-              <Thermometer size={14} className="text-accent-cyan/60 mb-0.5" />
-              <div className="text-sm font-bold text-white font-mono leading-none">24<span className="text-[10px] text-white/30 ml-0.5">°C</span></div>
-              <div className="text-[9px] text-white/40 uppercase tracking-widest">Indoor Temp</div>
-            </div>
-
-            <div className="relative z-10 flex flex-col items-center justify-center p-1 h-full gap-0.5">
-              <Droplets size={14} className="text-accent-cyan/60 mb-0.5" />
-              <div className="text-sm font-bold text-white font-mono leading-none">45<span className="text-[10px] text-white/30 ml-0.5">%</span></div>
-              <div className="text-[9px] text-white/40 uppercase tracking-widest">Humidity</div>
-            </div>
-
-            <div className="relative z-10 flex flex-col items-center justify-center p-1 h-full gap-0.5">
-              <Zap size={14} className="text-accent-cyan/60 mb-0.5" />
-              <div className="text-sm font-bold text-white font-mono leading-none">120<span className="text-[10px] text-white/30 ml-0.5">W</span></div>
-              <div className="text-[9px] text-white/40 uppercase tracking-widest">PC Power</div>
-            </div>
-          </Card>
+          <EnvironmentFooter />
 
         </div>
       </div>
