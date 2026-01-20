@@ -1,6 +1,6 @@
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { useStore } from '../store';
-import { Card } from './Card';
+import { AreaChart, Area, Tooltip, ResponsiveContainer } from 'recharts';
+// import { useStore } from '../store';
+// import { Card } from './Card';
 
 export function IoTMonitor() {
     // Mock Data for Visual Reference - "Perfect Wave"
@@ -12,38 +12,43 @@ export function IoTMonitor() {
     ];
 
     return (
-        <Card className="h-full flex flex-col p-4 relative overflow-hidden border-white/10 bg-white/5">
-            {/* Header */}
-            <div className="flex items-center justify-between pointer-events-none mb-2 z-10 relative">
-                <div className="text-[clamp(9px,0.7vw,11px)] font-bold text-white/50 tracking-[0.2em] uppercase">Telemetry</div>
-                <div className="text-[9px] font-mono text-white/40">Battery Level: 85%</div>
-            </div>
+        <div className="h-full flex flex-col relative overflow-hidden ring-0 bg-transparent flex-1 w-full">
+            {/* Header is handled in App.tsx now, removing internal header to match design flow */}
+            {/* However, if we need a label inside, we can add it overlaying. 
+                The prompt says "Adaptive Telemetry...". 
+                I will remove the internal "Telemetry" header as the App.tsx header covers the whole "Device Details".
+                But wait, "Device Details" is the top card. This Telemetry is inside that card. 
+                So I should probably keep it clean.
+            */}
 
-            <div className="flex-1 min-h-0 w-full relative -mx-4 -mb-4">
-                {/* Background Grid Lines */}
-                {/* <div className="absolute inset-0 z-0 opacity-20 pointer-events-none"
-                    style={{ backgroundImage: 'linear-gradient(to bottom, rgba(255,255,255,0.05) 1px, transparent 1px)', backgroundSize: '100% 10px' }}
-                /> */}
+            <div className="flex-1 w-full h-full relative">
+                {/* Background Grid Lines (10% interval) */}
+                <div className="absolute inset-0 pointer-events-none"
+                    style={{
+                        backgroundImage: 'linear-gradient(to bottom, rgba(255,255,255,0.05) 1px, transparent 1px)',
+                        backgroundSize: '100% 10%'
+                    }}
+                />
 
-                {/* <div className="absolute inset-0 bg-gradient-to-t from-[#ff00e5]/5 to-transparent z-0" /> */}
-                <ResponsiveContainer width="120%" height="100%">
-                    <AreaChart data={data} margin={{ top: 10, right: 0, left: 0, bottom: 0 }}>
+                <ResponsiveContainer width="102%" height="102%" className="-ml-1 -mt-1">
+                    <AreaChart data={data} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
                         <defs>
                             <linearGradient id="colorWave" x1="0" y1="0" x2="1" y2="0">
-                                <stop offset="0%" stopColor="#00f2ff" />
-                                <stop offset="100%" stopColor="#ff00e5" />
+                                <stop offset="0%" stopColor="#ff00e5" stopOpacity={0.8} />
+                                <stop offset="100%" stopColor="#ff00e5" stopOpacity={0.2} />
                             </linearGradient>
                             <linearGradient id="fillWave" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stopColor="#00f2ff" stopOpacity={0.1} />
-                                <stop offset="100%" stopColor="#ff00e5" stopOpacity={0.3} />
+                                <stop offset="0%" stopColor="#ff00e5" stopOpacity={0.3} />
+                                <stop offset="100%" stopColor="transparent" stopOpacity={0} />
                             </linearGradient>
                         </defs>
                         <Tooltip cursor={false} content={<></>} />
+                        {/* XAxis/YAxis hidden for clean look */}
                         <Area
                             type="monotone"
                             dataKey="power"
-                            stroke="url(#colorWave)"
-                            strokeWidth={3}
+                            stroke="#ff00e5"
+                            strokeWidth={2}
                             fillOpacity={1}
                             fill="url(#fillWave)"
                             isAnimationActive={true}
@@ -51,6 +56,6 @@ export function IoTMonitor() {
                     </AreaChart>
                 </ResponsiveContainer>
             </div>
-        </Card>
+        </div>
     );
 }
