@@ -1,10 +1,10 @@
-use rumqttc::{AsyncClient, Event, MqttOptions, Packet, Qos};
+use rumqttc::{AsyncClient, Event, MqttOptions, Packet, QoS};
 use serde::Serialize;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use sysinfo::{Networks, System};
 use tauri::{command, AppHandle, Emitter};
-use tokio::task;
+// use tokio::task;
 
 #[derive(Serialize, Debug, Clone)]
 pub struct TelemetryData {
@@ -38,17 +38,17 @@ pub fn start_iot_background_task(app: AppHandle) {
     let mut mqttoptions = MqttOptions::new("aether-pc-client", "localhost", 1883);
     mqttoptions.set_keep_alive(Duration::from_secs(5));
 
-    let (mut client, mut connection) = AsyncClient::new(mqttoptions, 10);
+    let (client, mut connection) = AsyncClient::new(mqttoptions, 10);
 
     // Spawn MQTT Event Loop
-    task::spawn(async move {
+    tauri::async_runtime::spawn(async move {
         // Subscribe to topics
-        client.subscribe("sensor/temp", Qos::AtMostOnce).await.ok();
+        client.subscribe("sensor/temp", QoS::AtMostOnce).await.ok();
         client
-            .subscribe("sensor/humidity", Qos::AtMostOnce)
+            .subscribe("sensor/humidity", QoS::AtMostOnce)
             .await
             .ok();
-        client.subscribe("sensor/power", Qos::AtMostOnce).await.ok();
+        client.subscribe("sensor/power", QoS::AtMostOnce).await.ok();
 
         loop {
             // Poll MQTT
@@ -74,7 +74,7 @@ pub fn start_iot_background_task(app: AppHandle) {
 
     // 2. Start Combined Telemetry Loop (Local + MQTT)
     let app_handle = app.clone();
-    task::spawn(async move {
+    tauri::async_runtime::spawn(async move {
         let mut sys = System::new_all();
         let mut networks = Networks::new_with_refreshed_list();
 

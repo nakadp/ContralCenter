@@ -42,9 +42,9 @@ export function SafetyModal({ isOpen, onClose, onConfirm, deviceName, isCritical
                             You are about to modify state for: <br />
                             <span className="font-bold text-white">{deviceName}</span>
                             {isCritical && (
-                                <span className="block mt-2 text-red-400 font-bold bg-red-500/10 p-2 rounded border border-red-500/20">
-                                    WARNING: Critical System Device.
-                                </span>
+                                <div className="mt-4 p-3 bg-red-500/20 border border-red-500/50 rounded text-red-200 text-xs font-mono glitch-text">
+                                    CRITICAL SYSTEM COMPONENT DETECTED
+                                </div>
                             )}
                         </p>
 
@@ -53,7 +53,10 @@ export function SafetyModal({ isOpen, onClose, onConfirm, deviceName, isCritical
                                 CANCEL
                             </Button>
                             <button
-                                onClick={onConfirm}
+                                onClick={() => {
+                                    // Trigger visually
+                                    onConfirm();
+                                }}
                                 className={`flex-1 px-4 py-2 font-mono font-bold text-black uppercase transition-all
                                     ${isCritical
                                         ? 'bg-accent-magenta hover:bg-accent-magenta/80 shadow-[0_0_20px_rgba(255,0,229,0.4)]'
@@ -64,6 +67,21 @@ export function SafetyModal({ isOpen, onClose, onConfirm, deviceName, isCritical
                             </button>
                         </div>
                     </div>
+
+                    {/* CSS Glitch Keyframes (Inline for scoped effect) */}
+                    <style>{`
+                        @keyframes glitch-skew {
+                            0% { transform: skew(0deg); }
+                            20% { transform: skew(-2deg); }
+                            40% { transform: skew(2deg); }
+                            60% { transform: skew(-1deg); }
+                            80% { transform: skew(1deg); }
+                            100% { transform: skew(0deg); }
+                        }
+                        .glitch-text {
+                            animation: glitch-skew 0.3s infinite;
+                        }
+                    `}</style>
                 </motion.div>
             </div>
         </AnimatePresence>

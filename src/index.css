@@ -13,12 +13,39 @@
 
 body {
   @apply bg-background text-white overflow-hidden antialiased;
+  background-image: 
+    radial-gradient(circle at 50% 50%, #1a1a1a 0%, #0a0a0a 100%),
+    url('/bg-grid.svg');
+  background-size: cover, 50px 50px;
+  background-blend-mode: overlay;
+}
+
+/* CRT Scanline Animation */
+@keyframes scanline {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100%); }
+}
+
+.animate-scanline {
+  animation: scanline 8s linear infinite;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(0, 242, 255, 0.03) 50%,
+    transparent 100%
+  );
+  height: 200%;
+}
+
+/* HUD Text Shadow */
+.text-hud {
+  text-shadow: 0 0 5px rgba(0, 242, 255, 0.5);
 }
 
 /* Scrollbar hiding for glass effect panels often looks better */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 4px; /* Thinner */
+  height: 4px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;

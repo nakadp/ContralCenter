@@ -18,6 +18,9 @@ fn get_devices() -> Vec<hardware::DeviceInfo> {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .manage(rgb::RGBState {
+            client: std::sync::Arc::new(tokio::sync::Mutex::new(None)),
+        })
         .plugin(
             tauri_plugin_sql::Builder::default()
                 .add_migrations("sqlite:aether.db", vec![
@@ -41,6 +44,7 @@ pub fn run() {
             get_devices,
             rgb::scan_rgb_devices,
             rgb::set_rgb_color,
+            rgb::connect_rgb,
             driver::check_driver_status,
             driver::launch_driver,
             hardware::toggle_device,

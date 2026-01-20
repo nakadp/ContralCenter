@@ -1,43 +1,47 @@
 use axum::{
-    extract::ws::{Message, WebSocket, WebSocketUpgrade},
+    extract::{
+        ws::{Message, WebSocket, WebSocketUpgrade},
+        State,
+    },
     response::IntoResponse,
     routing::get,
     Router,
 };
 use std::net::SocketAddr;
 use tauri::{AppHandle, Emitter};
-use tokio::sync::broadcast;
-use futures::{sink::SinkExt, stream::StreamExt};
 
 pub fn start_server(app: AppHandle) {
-    tokio::spawn(async move {
+    tauri::async_runtime::spawn(async move {
         // build our application with a route
-        let app_router = Router::new()
-            .route("/ws", get(ws_handler));
+        let app_router = Router::new().route("/ws", get(ws_handler)).with_state(app);
 
         let addr = SocketAddr::from(([0, 0, 0, 0], 8080));
         println!("iPad Bridge listening on {}", addr);
-        
+
         match tokio::net::TcpListener::bind(addr).await {
             Ok(listener) => {
-                 if let Err(e) = axum::serve(listener, app_router).await {
-                     eprintln!("Bridge Server Error: {}", e);
-                 }
-            },
+                if let Err(e) = axum::serve(listener, app_router).await {
+                    eprintln!("Bridge Server Error: {}", e);
+                }
+            }
             Err(e) => eprintln!("Failed to bind port 8080: {}", e),
         }
     });
 }
 
-async fn ws_handler(ws: WebSocketUpgrade) -> impl IntoResponse {
-    ws.on_upgrade(handle_socket)
+async fn ws_handler(ws: WebSocketUpgrade, State(app): State<AppHandle>) -> impl IntoResponse {
+    ws.on_upgrade(move |socket| handle_socket(socket, app))
 }
 
-async fn handle_socket(mut socket: WebSocket) {
+async fn handle_socket(mut socket: WebSocket, app: AppHandle) {
     println!("iPad Connected!");
-    
+
     // Send a welcome message
-    if socket.send(Message::Text("Connected to Aether Core".to_string())).await.is_err() {
+    if socket
+        .send(Message::Text("Connected to Aether Core".to_string()))
+        .await
+        .is_err()
+    {
         return;
     }
 
@@ -46,15 +50,17 @@ async fn handle_socket(mut socket: WebSocket) {
             match msg {
                 Message::Text(text) => {
                     println!("Received from iPad: {}", text);
-                    // Broadcast or handle command
-                    // logic to trigger tauri actions could go here (requires passing AppHandle down or using event bus)
-                },
+                    // Emit to frontend
+                    if let Err(e) = app.emit("ipad-command", &text) {
+                        eprintln!("Failed to emit ipad-command: {}", e);
+                    }
+                }
                 _ => {}
             }
         } else {
-             break;
+            break;
         }
     }
-    
+
     println!("iPad Disconnected");
 }

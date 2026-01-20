@@ -1,16 +1,17 @@
 use openrgb::data::Color;
 use openrgb::OpenRGB;
 use serde::{Deserialize, Serialize};
-use std::sync::{Arc, Mutex};
-use tauri::command;
+use std::sync::Arc;
+use tauri::{command, State};
 use tokio::net::TcpStream;
-use tokio::sync::Mutex as AsyncMutex;
+use tokio::sync::Mutex;
 
+// Define specific type alias for readability
 type OpenRGBClient = OpenRGB<TcpStream>;
 
-// Global state for Persistent OpenRGB Connection
-lazy_static::lazy_static! {
-    static ref RGB_CLIENT: Arc<AsyncMutex<Option<Arc<OpenRGBClient>>>> = Arc::new(AsyncMutex::new(None));
+// Store the client in Tauri State
+pub struct RGBState {
+    pub client: Arc<Mutex<Option<OpenRGBClient>>>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -21,32 +22,34 @@ pub struct RGBDevice {
     pub led_count: usize,
 }
 
-async fn get_client() -> Option<Arc<OpenRGBClient>> {
-    let mut client_guard = RGB_CLIENT.lock().await;
+#[command]
+pub async fn connect_rgb(state: State<'_, RGBState>) -> Result<String, String> {
+    let mut client_lock = state.client.lock().await;
 
-    if client_guard.is_some() {
-        return Some(client_guard.as_ref().unwrap().clone());
-    }
-
-    // Attempt to connect if not connected
-    // Attempt to connect if not connected
-    match OpenRGB::connect().await {
-        Ok(client) => {
-            println!("Connected to OpenRGB SDK");
-            let client_arc = Arc::new(client);
-            *client_guard = Some(client_arc.clone());
-            Some(client_arc)
+    // specific address can be made configurable later
+    match TcpStream::connect("127.0.0.1:6742").await {
+        Ok(stream) => {
+            // OpenRGB::new returns a future that performs the handshake
+            match OpenRGB::new(stream).await {
+                Ok(client) => {
+                    *client_lock = Some(client);
+                    Ok("Connected to OpenRGB".to_string())
+                }
+                Err(e) => Err(format!("Failed to handshake with OpenRGB: {:?}", e)),
+            }
         }
-        Err(e) => {
-            eprintln!("Failed to connect to OpenRGB: {:?}", e);
-            None
-        }
+        Err(e) => Err(format!("Failed to connect to OpenRGB TCP: {}", e)),
     }
 }
 
+// Helper to get client from state used by other commands
+// OR we just access state directly in commands.
+
 #[command]
-pub async fn scan_rgb_devices() -> Vec<RGBDevice> {
-    if let Some(client) = get_client().await {
+pub async fn scan_rgb_devices(state: State<'_, RGBState>) -> Result<Vec<RGBDevice>, String> {
+    let client_lock = state.client.lock().await;
+
+    if let Some(client) = client_lock.as_ref() {
         match client.get_controller_count().await {
             Ok(count) => {
                 let mut devices = Vec::new();
@@ -61,43 +64,47 @@ pub async fn scan_rgb_devices() -> Vec<RGBDevice> {
                         });
                     }
                 }
-                return devices;
+                return Ok(devices);
             }
             Err(e) => eprintln!("Error getting controller count: {:?}", e),
         }
     } else {
-        println!("OpenRGB Client not available");
+        println!("OpenRGB Client not connected");
     }
 
-    // Fallback/Stub if connection fails (for demo purposes if OpenRGB isn't running)
-    vec![RGBDevice {
+    // Fallback/Stub
+    Ok(vec![RGBDevice {
         name: "Emulator/Stub (OpenRGB Offline)".to_string(),
         index: -1,
         modes: vec!["Static".to_string()],
         led_count: 0,
-    }]
+    }])
 }
 
 #[command]
-pub async fn set_rgb_color(index: i32, r: u8, g: u8, b: u8) -> bool {
+pub async fn set_rgb_color(
+    state: State<'_, RGBState>,
+    index: i32,
+    r: u8,
+    g: u8,
+    b: u8,
+) -> Result<bool, String> {
     if index < 0 {
-        return false; // Ignore stub
+        return Ok(false);
     }
 
-    if let Some(client) = get_client().await {
-        let color = Color { r, g, b };
-        // Determine LED count for the device to set all LEDs
-        // Ideally we would cache this, but for now we re-fetch or assume 'all' equivalent api exists.
-        // openrgb crate 'update_leds' takes a vector of colors.
+    let client_lock = state.client.lock().await;
 
+    if let Some(client) = client_lock.as_ref() {
+        let color = Color { r, g, b };
         if let Ok(controller) = client.get_controller(index as u32).await {
             let colors = vec![color; controller.leds.len()];
             if let Err(e) = client.update_leds(index as u32, colors).await {
                 eprintln!("Failed to update LEDs: {:?}", e);
-                return false;
+                return Ok(false);
             }
-            return true;
+            return Ok(true);
         }
     }
-    false
+    Ok(false)
 }

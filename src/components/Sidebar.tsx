@@ -15,45 +15,52 @@ export function Sidebar() {
     const [active, setActive] = useState("topology");
 
     return (
-        <aside className="w-64 h-full border-r border-white/5 bg-white/5 backdrop-blur-xl flex flex-col z-20">
-            <div className="p-8">
-                <h1 className="text-2xl font-bold tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-accent-cyan to-accent-magenta animate-pulse">
-                    AETHER
-                </h1>
-                <p className="text-xs text-gray-500 mt-1 tracking-wider uppercase">Command Center</p>
+        <aside className="w-20 h-full border-r border-white/5 bg-black/20 backdrop-blur-xl flex flex-col items-center z-40 py-6 gap-8">
+            {/* Logo Icon */}
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent-cyan/20 to-accent-magenta/20 flex items-center justify-center border border-white/10 animate-pulse">
+                <div className="w-4 h-4 rounded-full bg-accent-cyan shadow-[0_0_10px_rgba(0,242,255,0.8)]" />
             </div>
 
-            <nav className="flex-1 px-4 space-y-2">
+            <nav className="flex-1 w-full flex flex-col items-center space-y-4">
                 {NAV_ITEMS.map((item) => (
-                    <button
+                    <motion.button
                         key={item.id}
                         onClick={() => setActive(item.id)}
-                        className={cn(
-                            "flex items-center w-full px-4 py-3 rounded-lg transition-all duration-300 group relative overflow-hidden",
-                            active === item.id
-                                ? "text-accent-cyan bg-accent-cyan/10 border border-accent-cyan/20 shadow-[0_0_15px_rgba(0,242,255,0.1)]"
-                                : "text-gray-400 hover:text-white hover:bg-white/5"
-                        )}
+                        className="group relative flex items-center justify-center w-12 h-12"
+                        whileHover={{ scale: 1.1, rotateX: 10, rotateY: 10, z: 20 }}
+                        transition={{ type: "spring", stiffness: 400, damping: 20 }}
                     >
                         {active === item.id && (
                             <motion.div
                                 layoutId="active-nav"
-                                className="absolute inset-0 bg-accent-cyan/5"
+                                className="absolute inset-0 bg-accent-cyan/10 border-l-2 border-accent-cyan rounded-r-lg shadow-[0_0_15px_rgba(0,242,255,0.2)] backdrop-blur-sm"
                                 initial={false}
                                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
                             />
                         )}
-                        <item.icon className={cn("w-5 h-5 mr-3 z-10", active === item.id && "drop-shadow-[0_0_8px_rgba(0,242,255,0.8)]")} />
-                        <span className="z-10 font-medium tracking-wide">{item.label}</span>
-                    </button>
+
+                        <item.icon
+                            className={cn(
+                                "w-6 h-6 z-10 transition-all duration-300",
+                                active === item.id
+                                    ? "text-accent-cyan drop-shadow-[0_0_5px_rgba(0,242,255,0.8)]"
+                                    : "text-gray-500 group-hover:text-gray-300"
+                            )}
+                        />
+
+                        {/* Hover Tooltip (Optional, forUX) */}
+                        <div className="absolute left-14 px-2 py-1 bg-black/80 border border-white/10 rounded text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+                            {item.label}
+                        </div>
+                    </motion.button>
                 ))}
             </nav>
 
-            <div className="p-4 border-t border-white/5">
-                <div className="flex items-center space-x-3 px-4 py-3 rounded-lg bg-black/20 border border-white/5">
-                    <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)] animate-pulse" />
-                    <span className="text-xs text-gray-400 font-mono">SYSTEM ONLINE</span>
-                </div>
+            <div className="mt-auto flex flex-col gap-4">
+                <button className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors">
+                    <Settings className="w-5 h-5 text-gray-500" />
+                </button>
+                <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_10px_#22c55e] animate-pulse mx-auto" />
             </div>
         </aside>
     );

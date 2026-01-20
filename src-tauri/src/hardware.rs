@@ -1,6 +1,6 @@
 use serde::Serialize;
-use tauri::{AppHandle, Manager};
-use windows::core::{PCWSTR, PSTR};
+use tauri::AppHandle;
+use windows::core::PCWSTR;
 use windows::Win32::Devices::DeviceAndDriverInstallation::{
     SetupDiEnumDeviceInfo, SetupDiGetClassDevsW, SetupDiGetDeviceRegistryPropertyW,
     DIGCF_ALLCLASSES, DIGCF_PRESENT, SPDRP_DEVICEDESC, SPDRP_FRIENDLYNAME, SPDRP_HARDWAREID,
