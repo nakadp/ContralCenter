@@ -15,7 +15,7 @@ export function Sidebar() {
     const [active, setActive] = useState("topology");
 
     return (
-        <aside className="w-20 h-full border-r border-white/5 bg-black/20 backdrop-blur-xl flex flex-col items-center z-40 py-6 gap-8">
+        <aside className="w-20 h-full border-r border-t border-white/20 bg-black/20 backdrop-blur-3xl flex flex-col items-center z-40 py-6 gap-8">
             {/* Logo Icon */}
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent-cyan/20 to-accent-magenta/20 flex items-center justify-center border border-white/10 animate-pulse">
                 <div className="w-4 h-4 rounded-full bg-accent-cyan shadow-[0_0_10px_rgba(0,242,255,0.8)]" />
@@ -33,7 +33,7 @@ export function Sidebar() {
                         {active === item.id && (
                             <motion.div
                                 layoutId="active-nav"
-                                className="absolute inset-0 bg-accent-cyan/10 border-l-2 border-accent-cyan rounded-r-lg shadow-[0_0_15px_rgba(0,242,255,0.2)] backdrop-blur-sm"
+                                className="absolute inset-0 bg-accent-cyan/10 border-l-4 border-accent-cyan rounded-r-lg shadow-[0_0_15px_rgba(0,242,255,0.5)] backdrop-blur-sm animate-pulse"
                                 initial={false}
                                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
                             />

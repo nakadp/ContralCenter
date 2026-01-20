@@ -4,7 +4,8 @@ import '@xyflow/react/dist/style.css';
 import { useHardware } from '../hooks/useHardware';
 import { useStore } from '../store';
 import { motion } from 'framer-motion';
-import { Monitor, Keyboard, Mouse, Smartphone, HardDrive } from 'lucide-react';
+import { Monitor, Keyboard, Mouse, Smartphone, HardDrive, Cpu, Activity, Network } from 'lucide-react';
+import { cn } from '../lib/utils';
 import { invoke } from '@tauri-apps/api/core';
 import { SafetyModal } from './SafetyModal';
 
@@ -137,6 +138,21 @@ export function TopologyMap() {
     const nodeTypes = useMemo(() => ({ pc: PCNode, device: DeviceNode }), []);
     const edgeTypes = useMemo(() => ({ pulse: PulseEdge }), []);
 
+    // Format helper
+    const formatBytes = (bytes: number) => {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + sizes[i];
+    };
+
+    const getMetricColor = (val: number) => {
+        if (val > 80) return "text-accent-magenta";
+        if (val > 50) return "text-yellow-400";
+        return "text-accent-cyan";
+    };
+
     useEffect(() => {
         const pcNode: Node = {
             id: 'pc-1',
@@ -146,7 +162,15 @@ export function TopologyMap() {
             draggable: false,
         };
 
-        const deviceNodes: Node[] = devices.map((device, index) => {
+        // Mock devices if none found (VISUAL FIX)
+        const activeDevices = devices.length > 0 ? devices : [
+            { id: 'mock-1', name: 'Neural Link', alias: 'Neural Link' },
+            { id: 'mock-2', name: 'Bio-Synth', alias: 'Bio-Synth' },
+            { id: 'mock-3', name: 'Quantum Net', alias: 'Quantum Net' },
+            { id: 'mock-4', name: 'Cyber-Deck', alias: 'Cyber-Deck' }
+        ];
+
+        const deviceNodes: Node[] = activeDevices.map((device, index) => {
             // Semi-circle layout on the right
             const count = devices.length;
             const spread = Math.PI / 1.5; // Spread over ~120 degrees
@@ -169,7 +193,7 @@ export function TopologyMap() {
         // Use real telemetry load
         const currentLoad = latestTelemetry?.net_down ? (latestTelemetry.net_down > 500000 ? 100 : Math.min(latestTelemetry.net_down / 5000, 100)) : 10;
 
-        const deviceEdges: Edge[] = devices.map((device, i) => ({
+        const deviceEdges: Edge[] = activeDevices.map((device, i) => ({
             id: `e-pc-${device.id}`,
             source: 'pc-1',
             sourceHandle: `port-${(i % 4) + 1}`, // Cycle through 4 virtual ports
@@ -204,7 +228,48 @@ export function TopologyMap() {
     const isCritical = selectedDevice ? ['mouse', 'keyboard', 'system'].some(k => selectedDevice.name.toLowerCase().includes(k)) : false;
 
     return (
-        <div className="w-full h-full min-h-[400px]">
+        <div className="w-full h-full min-h-[400px] relative">
+            {/* HUD Injection - Top Right within Topology */}
+            <div className="absolute top-4 right-4 z-50 pointer-events-none select-none">
+                <div className="flex items-center gap-4 bg-black/40 px-6 py-2 rounded-full backdrop-blur-2xl border border-white/20 shadow-[0_4px_30px_rgba(0,0,0,0.1)]">
+                    {/* CPU */}
+                    <div className="flex items-center gap-3 border-r border-white/10 pr-6">
+                        <Cpu className="w-4 h-4 text-accent-cyan" />
+                        <div className="flex items-baseline gap-1 font-mono tracking-tighter">
+                            <span className="text-xs text-gray-400 opacity-50">CPU:</span>
+                            <span className={cn("text-lg font-bold w-12 text-right", getMetricColor(latestTelemetry?.cpu_load || 0))}>
+                                {latestTelemetry?.cpu_load.toFixed(0)}%
+                            </span>
+                            <span className="text-xs text-gray-400 opacity-50">55°C</span>
+                        </div>
+                    </div>
+
+                    {/* GPU (Mock) */}
+                    <div className="flex items-center gap-3 border-r border-white/10 pr-6">
+                        <Activity className="w-4 h-4 text-accent-magenta" />
+                        <div className="flex items-baseline gap-1 font-mono tracking-tighter">
+                            <span className="text-xs text-gray-400 opacity-50">GPU:</span>
+                            <span className="text-lg font-bold text-accent-magenta w-10 text-right">8%</span>
+                            <span className="text-xs text-gray-400 opacity-50">42°C</span>
+                        </div>
+                    </div>
+
+                    {/* Network */}
+                    <div className="flex items-center gap-3">
+                        <Network className="w-4 h-4 text-white/70" />
+                        <div className="flex items-baseline gap-3 font-mono tracking-tighter">
+                            <span className="text-sm">
+                                <span className="text-gray-500 text-xs mr-1 opacity-50">↓</span>
+                                {formatBytes(latestTelemetry?.net_down || 0)}/s
+                            </span>
+                            <span className="text-sm">
+                                <span className="text-gray-500 text-xs mr-1 opacity-50">↑</span>
+                                {formatBytes(latestTelemetry?.net_up || 0)}/s
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
             <ReactFlow
                 nodes={nodes}
                 edges={edges}

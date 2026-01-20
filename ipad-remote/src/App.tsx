@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Activity, Fan, Lightbulb, Wifi, Cast, Power, Music, Cpu, Thermometer } from 'lucide-react';
 import './index.css';
@@ -40,12 +40,33 @@ const ConnectScreen = ({ onConnect }: { onConnect: (ip: string) => void }) => {
 
 // --- Dashboard Component ---
 const Dashboard = ({ ws }: { ws: WebSocket | null }) => {
-  // Mock Data
-  const telemetry = { cpu: 24, temp: 45, gpu: 12, ram: 16 };
+  const [telemetry, setTelemetry] = useState({ cpu: 0, temp: 0, gpu: 0, ram: 0 });
+
+  useEffect(() => {
+    if (!ws) return;
+
+    ws.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data);
+        if (msg.type === 'TELEM_UPDATE') {
+          const data = msg.data;
+          // Map PC telemetry to iPad View
+          setTelemetry({
+            cpu: Math.round(data.cpu_load || 0),
+            temp: Math.round(data.temperature || 0),
+            gpu: 0, // Not yet in sysinfo struct
+            ram: Math.round(data.memory_load || 0)
+          });
+        }
+      } catch (e) {
+        // Ignore non-json
+      }
+    };
+  }, [ws]);
 
   const sendCommand = (cmd: string) => {
     if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type: 'command', payload: cmd }));
+      ws.send(cmd);
     }
   };
 
@@ -80,9 +101,9 @@ const Dashboard = ({ ws }: { ws: WebSocket | null }) => {
           <div className="flex items-center gap-2 text-purple-400 mb-2">
             <Activity size={20} /> <span className="text-xs font-bold tracking-widest">RAM USAGE</span>
           </div>
-          <div className="text-5xl font-mono font-bold text-white">{telemetry.ram}GB</div>
+          <div className="text-5xl font-mono font-bold text-white">{telemetry.ram}%</div>
           <div className="w-full bg-gray-800 h-1 mt-2 rounded-full overflow-hidden">
-            <div className="bg-purple-400 h-full" style={{ width: `40%` }} />
+            <div className="bg-purple-400 h-full" style={{ width: `${telemetry.ram}%` }} />
           </div>
         </div>
       </div>

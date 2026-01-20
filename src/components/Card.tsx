@@ -21,9 +21,9 @@ export function Card({ children, className, variant = "default", ...props }: Car
             exit={{ opacity: 0, y: 10 }}
             onMouseMove={handleMouseMove}
             className={cn(
-                "relative overflow-hidden rounded-xl border border-white/5 bg-white/5 p-6 backdrop-blur-md transition-all duration-300 group",
-                "hover:border-white/10 hover:shadow-lg",
-                variant === "neon" && "border-accent-cyan/30 hover:shadow-[0_0_20px_rgba(0,242,255,0.1)]",
+                "relative overflow-hidden rounded-xl border-t border-l border-white/30 border-r border-b border-transparent bg-black/40 p-6 backdrop-blur-3xl transition-all duration-300 group",
+                "hover:border-white/40 hover:shadow-[0_0_30px_rgba(0,242,255,0.1)]",
+                variant === "neon" && "border-accent-cyan/50 hover:shadow-[0_0_20px_rgba(0,242,255,0.3)]",
                 className
             )}
             {...props}

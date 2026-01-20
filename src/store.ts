@@ -95,6 +95,11 @@ export const useStore = create<AppState>((set, get) => ({
         // Listen for IoT Data
         listen<Omit<TelemetryData, 'timestamp'>>('iot-data', (event) => {
             const newData = { ...event.payload, timestamp: new Date().toLocaleTimeString() };
+
+            // Broadcast to iPad
+            invoke('send_to_ipad', { payload: JSON.stringify({ type: 'TELEM_UPDATE', data: newData }) })
+                .catch(e => console.warn("iPad Sync Error", e));
+
             set((state) => {
                 const history = [...state.telemetryHistory, newData].slice(-50); // Keep last 50
                 return {

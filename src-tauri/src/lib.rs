@@ -48,7 +48,8 @@ pub fn run() {
             driver::check_driver_status,
             driver::launch_driver,
             hardware::toggle_device,
-            hardware::get_local_ip
+            hardware::get_local_ip,
+            bridge::send_to_ipad
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

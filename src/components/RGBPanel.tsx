@@ -1,6 +1,6 @@
-import { Monitor, Mouse, Keyboard } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { useState, useEffect } from "react";
+import { Card } from "./Card";
 
 export function RGBPanel() {
     const [color, setColor] = useState({ r: 0, g: 242, b: 255 }); // Default Cyan
@@ -50,56 +50,74 @@ export function RGBPanel() {
     };
 
     return (
-        <div className="bg-black/40 backdrop-blur-md border border-white/10 rounded-xl p-6 flex flex-col items-center h-full relative overflow-hidden group">
+        <Card className="flex flex-col p-4 gap-3 relative overflow-hidden border-white/10 bg-white/5 h-full">
             <div className="absolute inset-0 bg-gradient-to-b from-accent-cyan/5 to-transparent pointer-events-none" />
 
-            <div className="flex items-center justify-between w-full mb-4 z-10">
-                <div className="text-xs font-mono text-gray-400 uppercase tracking-widest">Aura Sync</div>
-                <div className={`w-2 h-2 rounded-full shadow-[0_0_8px] transition-colors ${connected ? 'bg-accent-cyan shadow-[#00F2FF]' : 'bg-red-500 shadow-red-500'}`} />
+            {/* Header */}
+            <div className="flex items-center justify-between z-10 shrink-0">
+                <div className="text-[clamp(9px,0.7vw,11px)] font-bold text-white/50 tracking-[0.2em] uppercase">RGB Control</div>
+                <div className={`w-1.5 h-1.5 rounded-full shadow-[0_0_8px] transition-colors ${connected ? 'bg-accent-cyan shadow-[#00F2FF]' : 'bg-red-500 shadow-red-500'}`} />
             </div>
 
-            {/* Conic Color Wheel */}
-            <div
-                className="w-40 h-40 rounded-full bg-[conic-gradient(from_0deg,#ff0000,#ffff00,#00ff00,#00ffff,#0000ff,#ff00ff,#ff0000)] relative cursor-crosshair shadow-[0_0_30px_rgba(0,0,0,0.5)] transition-transform hover:scale-105 active:scale-95 mb-6 ring-4 ring-white/5"
-                onClick={handleWheelClick}
-            >
-                {/* Center Knob */}
-                <div className="absolute inset-0 m-auto w-16 h-16 rounded-full bg-black/80 border border-white/10 flex items-center justify-center backdrop-blur-xl">
-                    <div
-                        className="w-8 h-8 rounded-full shadow-[0_0_15px_currentColor] transition-colors duration-500"
-                        style={{ backgroundColor: `rgb(${color.r},${color.g},${color.b})` }}
-                    />
-                </div>
-            </div>
-
-            {/* Brightness Slider */}
-            <div className="w-full max-w-[180px] z-10 space-y-2">
-                <div className="flex justify-between text-[10px] text-gray-500 font-mono">
-                    <span>DIM</span>
-                    <span>BRIGHT</span>
-                </div>
-                <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    value={brightness}
-                    onChange={(e) => setBrightness(parseInt(e.target.value))}
-                    className="w-full h-1 bg-white/10 rounded-full appearance-none cursor-pointer accent-accent-cyan hover:accent-accent-magenta transition-colors"
-                />
-            </div>
-
-            {/* Device List (Real) */}
-            <div className="mt-auto w-full flex items-center justify-center gap-2 pt-4 border-t border-white/5">
-                {rgbDevices.length > 0 ? rgbDevices.map((d, i) => (
-                    <div key={i} title={d.name} className="w-8 h-8 rounded bg-white/5 flex items-center justify-center border border-white/5 text-gray-400 hover:text-white hover:border-accent-cyan transition-colors cursor-help">
-                        {d.name.toLowerCase().includes('mouse') ? <Mouse size={14} /> :
-                            d.name.toLowerCase().includes('keyboard') ? <Keyboard size={14} /> :
-                                <Monitor size={14} />}
+            <div className="flex flex-row items-center gap-4 flex-1">
+                {/* Left: Compact Color Wheel - Fixed Scale */}
+                <div
+                    className="w-[112px] h-[112px] shrink-0 rounded-full bg-[conic-gradient(from_0deg,#ff0000,#ffff00,#00ff00,#00ffff,#0000ff,#ff00ff,#ff0000)] relative cursor-crosshair shadow-[0_0_20px_rgba(0,0,0,0.5)] ring-1 ring-white/10 group-hover:scale-105 transition-transform"
+                    onClick={handleWheelClick}
+                >
+                    {/* Center Knob */}
+                    <div className="absolute inset-0 m-auto w-[48px] h-[48px] rounded-full bg-black/90 border border-white/10 flex items-center justify-center backdrop-blur-xl">
+                        <div
+                            className="w-[20px] h-[20px] rounded-full shadow-[0_0_10px_currentColor] transition-colors duration-500 border border-white/10"
+                            style={{ backgroundColor: `rgb(${color.r},${color.g},${color.b})` }}
+                        />
                     </div>
-                )) : (
-                    <div className="text-[10px] text-gray-500 font-mono">NO RGB DEVICES</div>
-                )}
+                </div>
+
+                {/* Right: Controls Stack */}
+                <div className="flex-1 flex flex-col justify-center gap-4 min-w-0 py-1">
+                    {/* Controls Group */}
+                    <div className="flex flex-col gap-3">
+                        {/* Brightness */}
+                        <div className="space-y-1.5">
+                            <div className="flex justify-between text-[clamp(9px,0.7vw,11px)] text-white/30 font-mono uppercase tracking-wider">
+                                <span>Brightness</span>
+                                <span>{brightness}%</span>
+                            </div>
+                            <div className="h-[2px] w-full bg-white/5 rounded-full overflow-visible relative flex items-center">
+                                <input
+                                    type="range"
+                                    min="0"
+                                    max="100"
+                                    value={brightness}
+                                    onChange={(e) => setBrightness(parseInt(e.target.value))}
+                                    className="absolute inset-0 w-full h-4 -top-2 opacity-0 z-10 cursor-pointer"
+                                />
+                                <div
+                                    className="h-full bg-accent-cyan/80 rounded-full transition-all duration-300 relative"
+                                    style={{ width: `${brightness}%` }}
+                                >
+                                    <div className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 bg-accent-cyan rounded-full shadow-[0_0_8px_#00f2ff]" />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Mode Selector */}
+                        <div className="space-y-1.5">
+                            <div className="text-[clamp(9px,0.7vw,11px)] text-white/30 font-mono uppercase tracking-wider">Mode</div>
+                            <div className="relative">
+                                <select className="w-full bg-white/5 border border-white/10 hover:bg-white/10 rounded text-[10px] text-white px-2 py-1 outline-none focus:border-accent-cyan/50 appearance-none font-mono transition-colors">
+                                    <option>Static</option>
+                                    <option>Breathing</option>
+                                    <option selected>Pulse</option>
+                                    <option>Rainbow</option>
+                                </select>
+                                <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-white/20 text-[8px]">▼</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-        </div>
+        </Card>
     );
 }

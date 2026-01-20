@@ -7,8 +7,16 @@ use axum::{
     routing::get,
     Router,
 };
+use lazy_static::lazy_static;
 use std::net::SocketAddr;
 use tauri::{AppHandle, Emitter};
+use tokio::sync::broadcast;
+
+// Global broadcast channel for sending messages to iPad
+lazy_static! {
+    static ref BROADCAST: (broadcast::Sender<String>, broadcast::Receiver<String>) =
+        broadcast::channel(100);
+}
 
 pub fn start_server(app: AppHandle) {
     tauri::async_runtime::spawn(async move {
@@ -29,6 +37,12 @@ pub fn start_server(app: AppHandle) {
     });
 }
 
+#[tauri::command]
+pub fn send_to_ipad(payload: String) {
+    // Send to all connected websockets
+    let _ = BROADCAST.0.send(payload);
+}
+
 async fn ws_handler(ws: WebSocketUpgrade, State(app): State<AppHandle>) -> impl IntoResponse {
     ws.on_upgrade(move |socket| handle_socket(socket, app))
 }
@@ -45,20 +59,30 @@ async fn handle_socket(mut socket: WebSocket, app: AppHandle) {
         return;
     }
 
-    while let Some(msg) = socket.recv().await {
-        if let Ok(msg) = msg {
-            match msg {
-                Message::Text(text) => {
-                    println!("Received from iPad: {}", text);
-                    // Emit to frontend
-                    if let Err(e) = app.emit("ipad-command", &text) {
-                        eprintln!("Failed to emit ipad-command: {}", e);
+    // Subscribe to broadcast
+    let mut rx = BROADCAST.0.subscribe();
+
+    loop {
+        tokio::select! {
+            // Receive from iPad
+            msg = socket.recv() => {
+                match msg {
+                     Some(Ok(Message::Text(text))) => {
+                        println!("Received from iPad: {}", text);
+                        if let Err(e) = app.emit("ipad-command", &text) {
+                            eprintln!("Failed to emit ipad-command: {}", e);
+                        }
                     }
+                    Some(Ok(Message::Close(_))) | None => break,
+                    _ => {}
                 }
-                _ => {}
             }
-        } else {
-            break;
+            // Send to iPad (Broadcast)
+            Ok(msg) = rx.recv() => {
+                if socket.send(Message::Text(msg)).await.is_err() {
+                    break;
+                }
+            }
         }
     }
 
