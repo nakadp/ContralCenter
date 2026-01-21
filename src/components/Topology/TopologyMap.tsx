@@ -1,35 +1,24 @@
-import { useCallback, useMemo } from 'react';
+import { useMemo } from 'react';
 import { ReactFlow, Background, Controls, type Node, type Edge, useNodesState, useEdgesState } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import HUDCapsule from '../UI/HUDCapsule';
 import HostNode from '../HostNode';
+import PeripheralNode from '../PeripheralNode';
 import PulseEdge from '../PulseEdge';
-
-const nodeStyle = {
-    background: 'rgba(0,0,0,0.6)',
-    color: '#fff',
-    border: '1px solid rgba(255,255,255,0.1)',
-    backdropFilter: 'blur(10px)',
-    borderRadius: '12px',
-    padding: '10px 20px',
-    fontFamily: '"JetBrains Mono", monospace',
-    fontSize: '12px',
-    boxShadow: '0 0 15px rgba(0,0,0,0.5)'
-};
 
 const initialNodes: Node[] = [
     { id: 'host', position: { x: 0, y: 0 }, data: { label: 'HOST PC' }, type: 'host' },
-    { id: 'p1', position: { x: -300, y: 150 }, data: { label: 'NEURAL LINK' }, style: nodeStyle },
-    { id: 'p2', position: { x: 300, y: 150 }, data: { label: 'BIO-SYNTH' }, style: nodeStyle },
-    { id: 'p3', position: { x: 0, y: 300 }, data: { label: 'QUANTUM NET' }, style: nodeStyle },
+    { id: 'p1', position: { x: -300, y: 150 }, data: { label: 'NEURAL LINK', icon: 'mouse' }, type: 'peripheral' },
+    { id: 'p2', position: { x: 300, y: 150 }, data: { label: 'BIO-SYNTH', icon: 'keyboard' }, type: 'peripheral' },
+    { id: 'p3', position: { x: 0, y: 300 }, data: { label: 'QUANTUM NET', icon: 'dock' }, type: 'peripheral' },
 ];
 
 const edgeStyle = { stroke: '#00f2ff', strokeWidth: 2 };
 
 const initialEdges: Edge[] = [
-    { id: 'e1-host', source: 'host', sourceHandle: 'port-0', target: 'p1', type: 'pulse', style: edgeStyle },
-    { id: 'e2-host', source: 'host', sourceHandle: 'port-1', target: 'p2', type: 'pulse', style: edgeStyle },
-    { id: 'e3-host', source: 'host', sourceHandle: 'port-2', target: 'p3', type: 'pulse', style: edgeStyle },
+    { id: 'e1-host', source: 'host', sourceHandle: 'port-0', target: 'p1', targetHandle: 'port-0', type: 'pulse', style: edgeStyle },
+    { id: 'e2-host', source: 'host', sourceHandle: 'port-1', target: 'p2', targetHandle: 'port-0', type: 'pulse', style: edgeStyle },
+    { id: 'e3-host', source: 'host', sourceHandle: 'port-2', target: 'p3', targetHandle: 'port-0', type: 'pulse', style: edgeStyle },
 ];
 
 export default function TopologyMap() {
@@ -38,6 +27,7 @@ export default function TopologyMap() {
 
     const nodeTypes = useMemo(() => ({
         host: HostNode,
+        peripheral: PeripheralNode,
     }), []);
 
     const edgeTypes = useMemo(() => ({
