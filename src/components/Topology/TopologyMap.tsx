@@ -6,20 +6,64 @@ import HostNode from '../HostNode';
 import PeripheralNode from '../PeripheralNode';
 import PulseEdge from '../PulseEdge';
 
-const initialNodes: Node[] = [
-    { id: 'host', position: { x: 0, y: 0 }, data: { label: 'HOST PC' }, type: 'host' },
-    { id: 'p1', position: { x: -300, y: 150 }, data: { label: 'NEURAL LINK', icon: 'mouse' }, type: 'peripheral' },
-    { id: 'p2', position: { x: 300, y: 150 }, data: { label: 'BIO-SYNTH', icon: 'keyboard' }, type: 'peripheral' },
-    { id: 'p3', position: { x: 0, y: 300 }, data: { label: 'QUANTUM NET', icon: 'dock' }, type: 'peripheral' },
+// Define the peripherals data
+const peripheralsData = [
+    { id: 'p1', label: 'NEURAL LINK', icon: 'mouse' },
+    { id: 'p2', label: 'BIO-SYNTH', icon: 'keyboard' },
+    { id: 'p3', label: 'QUANTUM NET', icon: 'dock' },
 ];
 
-const edgeStyle = { stroke: '#00f2ff', strokeWidth: 2 };
+const LAYOUT = {
+    HOST_X: 0,
+    DEVICE_X: 500,
+    VERTICAL_SPACING: 200, // Adjust spacing as needed
+};
 
-const initialEdges: Edge[] = [
-    { id: 'e1-host', source: 'host', sourceHandle: 'port-0', target: 'p1', targetHandle: 'port-0', type: 'pulse', style: edgeStyle },
-    { id: 'e2-host', source: 'host', sourceHandle: 'port-1', target: 'p2', targetHandle: 'port-0', type: 'pulse', style: edgeStyle },
-    { id: 'e3-host', source: 'host', sourceHandle: 'port-2', target: 'p3', targetHandle: 'port-0', type: 'pulse', style: edgeStyle },
-];
+// Helper: Generate Layout
+const generateLayout = () => {
+    const count = peripheralsData.length;
+    const totalHeight = (count - 1) * LAYOUT.VERTICAL_SPACING;
+    const startY = -totalHeight / 2;
+
+    const hostPorts = peripheralsData.map((_, i) => `port-${i}`);
+
+    const hostNode: Node = {
+        id: 'host',
+        position: { x: LAYOUT.HOST_X, y: 0 }, // Host always centered vertically relative to cluster center
+        data: {
+            label: 'HOST PC',
+            ports: hostPorts
+        },
+        type: 'host',
+    };
+
+    const peripheralNodes: Node[] = peripheralsData.map((p, i) => ({
+        id: p.id,
+        position: {
+            x: LAYOUT.DEVICE_X,
+            y: startY + i * LAYOUT.VERTICAL_SPACING
+        },
+        data: { label: p.label, icon: p.icon },
+        type: 'peripheral',
+    }));
+
+    const edges: Edge[] = peripheralsData.map((p, i) => ({
+        id: `e-${p.id}`,
+        source: 'host',
+        sourceHandle: `port-${i}`,
+        target: p.id,
+        targetHandle: 'port-0',
+        type: 'pulse',
+        style: { stroke: '#00f2ff', strokeWidth: 2 },
+    }));
+
+    return {
+        initialNodes: [hostNode, ...peripheralNodes],
+        initialEdges: edges,
+    };
+};
+
+const { initialNodes, initialEdges } = generateLayout();
 
 export default function TopologyMap() {
     const [nodes, , onNodesChange] = useNodesState(initialNodes);

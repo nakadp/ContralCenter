@@ -75,23 +75,14 @@ const PeripheralNode = ({ data }: NodeProps<Node<PeripheralNodeData>>) => {
                 </motion.div>
 
                 {/* 5. Connection Handles (Left Side) - Updated to Left */}
-                <div className="absolute top-0 h-full -left-6 flex flex-col justify-evenly py-6 z-30">
-                    {[0, 1, 2, 3].map((i) => {
-                        const isTop = i < 2;
-                        const colorClass = isTop ? 'bg-[#00f2ff] shadow-[0_0_10px_#00f2ff]' : 'bg-[#ff00e5] shadow-[0_0_10px_#ff00e5]';
-                        const borderColor = isTop ? 'border-[#00f2ff]' : 'border-[#ff00e5]';
-
-                        return (
-                            <Handle
-                                key={i}
-                                type="target"
-                                position={Position.Left}
-                                id={`port-${i}`}
-                                className={`!relative !w-3 !h-3 rounded-full !border-[1.5px] ${borderColor} ${colorClass} transition-transform hover:scale-150`}
-                                style={{ left: 'auto', right: 'auto', transform: 'none' }}
-                            />
-                        );
-                    })}
+                <div className="absolute top-1/2 -translate-y-1/2 -left-6 flex flex-col justify-center items-center z-30">
+                    <Handle
+                        type="target"
+                        position={Position.Left}
+                        id="port-0"
+                        className="!relative !w-3 !h-3 rounded-full !border-[1.5px] border-[#00f2ff] bg-[#00f2ff] shadow-[0_0_10px_#00f2ff] transition-transform hover:scale-150"
+                        style={{ left: 'auto', right: 'auto', transform: 'none' }}
+                    />
                 </div>
             </div>
 

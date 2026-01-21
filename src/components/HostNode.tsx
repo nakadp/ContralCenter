@@ -1,12 +1,17 @@
-import React from 'react';
-import { Handle, Position, type NodeProps } from '@xyflow/react';
+import { Handle, Position, type NodeProps, type Node } from '@xyflow/react';
 import { Monitor } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, type Variants } from 'framer-motion';
+
+// Define data interface
+interface HostNodeData extends Record<string, unknown> {
+    label: string;
+    ports?: string[];
+}
 
 // v9.0 Variants: "Straight Flow"
 // 1. Flowing Gradient Border Animation
 // Strong movement of the light beam around the border
-const strokeFlowVariants = {
+const strokeFlowVariants: Variants = {
     animate: {
         backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"],
         transition: { duration: 3, repeat: Infinity, ease: "linear" }
@@ -15,7 +20,7 @@ const strokeFlowVariants = {
 
 // 2. Pulse Glow (Ambient)
 // Staged blur levels for depth - Increased by 20%
-const ambientGlowVariants = {
+const ambientGlowVariants: Variants = {
     animate: {
         boxShadow: [
             "0 0 24px 6px rgba(0, 242, 255, 0.5), 0 0 72px 18px rgba(0, 242, 255, 0.3)",
@@ -26,7 +31,9 @@ const ambientGlowVariants = {
     }
 };
 
-const HostNode = ({ data }: NodeProps) => {
+const HostNode = ({ data }: NodeProps<Node<HostNodeData>>) => {
+    const ports = data.ports || ['port-0', 'port-1', 'port-2'];
+
     return (
         <div className="flex flex-col items-center gap-3 relative group z-10">
 
@@ -72,23 +79,17 @@ const HostNode = ({ data }: NodeProps) => {
                 </motion.div>
 
                 {/* 5. Extruded Ports */}
-                <div className="absolute top-0 h-full -right-6 flex flex-col justify-evenly py-6 z-30">
-                    {[0, 1, 2, 3].map((i) => {
-                        const isTop = i < 2;
-                        const colorClass = isTop ? 'bg-[#00f2ff] shadow-[0_0_10px_#00f2ff]' : 'bg-[#ff00e5] shadow-[0_0_10px_#ff00e5]';
-                        const borderColor = isTop ? 'border-[#00f2ff]' : 'border-[#ff00e5]';
-
-                        return (
-                            <Handle
-                                key={i}
-                                type="source"
-                                position={Position.Right}
-                                id={`port-${i}`}
-                                className={`!relative !w-3 !h-3 rounded-full !border-[1.5px] ${borderColor} ${colorClass} transition-transform hover:scale-150`}
-                                style={{ right: 'auto', top: 'auto', transform: 'none' }}
-                            />
-                        );
-                    })}
+                <div className="absolute top-0 h-full -right-6 flex flex-col justify-center gap-4 py-6 z-30">
+                    {ports.map((portId) => (
+                        <Handle
+                            key={portId}
+                            type="source"
+                            position={Position.Right}
+                            id={portId}
+                            className="!relative !w-3 !h-3 rounded-full !border-[1.5px] border-[#00f2ff] bg-[#00f2ff] shadow-[0_0_10px_#00f2ff] transition-transform hover:scale-150"
+                            style={{ right: 'auto', top: 'auto', transform: 'none' }}
+                        />
+                    ))}
                 </div>
             </div>
 
