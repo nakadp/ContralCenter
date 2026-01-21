@@ -31,8 +31,20 @@ const ambientGlowVariants: Variants = {
     }
 };
 
-const HostNode = ({ data }: NodeProps<Node<HostNodeData>>) => {
+const HostNode = ({ data, selected }: NodeProps<Node<HostNodeData>>) => {
     const ports = data.ports || ['port-0', 'port-1', 'port-2'];
+
+    // Boosted glow for selected state (+50% range and intensity)
+    const selectedGlowVariants: Variants = {
+        animate: {
+            boxShadow: [
+                "0 0 36px 9px rgba(0, 242, 255, 0.75), 0 0 108px 27px rgba(0, 242, 255, 0.45)",
+                "0 0 36px 9px rgba(255, 0, 229, 0.75), 0 0 108px 27px rgba(255, 0, 229, 0.45)",
+                "0 0 36px 9px rgba(0, 242, 255, 0.75), 0 0 108px 27px rgba(0, 242, 255, 0.45)"
+            ],
+            transition: { duration: 4, repeat: Infinity, ease: "easeInOut" }
+        }
+    };
 
     return (
         <div className="flex flex-col items-center gap-3 relative group z-10">
@@ -50,8 +62,9 @@ const HostNode = ({ data }: NodeProps<Node<HostNodeData>>) => {
                 >
                     {/* 2. Combined Shadow Layer (Applied to the frame) */}
                     <motion.div
-                        variants={ambientGlowVariants}
+                        initial="animate"
                         animate="animate"
+                        variants={selected ? selectedGlowVariants : ambientGlowVariants}
                         className="absolute inset-0 rounded-[2rem] opacity-90"
                     />
 
@@ -86,6 +99,8 @@ const HostNode = ({ data }: NodeProps<Node<HostNodeData>>) => {
                             type="source"
                             position={Position.Right}
                             id={portId}
+                            // Important: Stop propagation to prevent selecting the node when clicking connection points if needed
+                            // But here we just want visual styles
                             className="!relative !w-3 !h-3 rounded-full !border-[1.5px] border-[#00f2ff] bg-[#00f2ff] shadow-[0_0_10px_#00f2ff] transition-transform hover:scale-150"
                             style={{ right: 'auto', top: 'auto', transform: 'none' }}
                         />
