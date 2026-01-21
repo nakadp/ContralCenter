@@ -25,7 +25,8 @@ const generateLayout = () => {
     const totalHeight = (count - 1) * LAYOUT.VERTICAL_SPACING;
     const startY = -totalHeight / 2;
 
-    const hostPorts = peripheralsData.map((_, i) => `port-${i}`);
+    // Define 4 physical ports for the Host PC
+    const hostPorts = ['port-0', 'port-1', 'port-2', 'port-3'];
 
     const hostNode: Node = {
         id: 'host',
@@ -47,6 +48,8 @@ const generateLayout = () => {
         type: 'peripheral',
     }));
 
+    const edgeLoads = [95, 60, 25]; // Example loads: High, Medium, Low
+
     const edges: Edge[] = peripheralsData.map((p, i) => ({
         id: `e-${p.id}`,
         source: 'host',
@@ -54,6 +57,7 @@ const generateLayout = () => {
         target: p.id,
         targetHandle: 'port-0',
         type: 'pulse',
+        data: { load: edgeLoads[i] },
         style: { stroke: '#00f2ff', strokeWidth: 2 },
     }));
 
