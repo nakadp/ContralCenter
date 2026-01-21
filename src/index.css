@@ -1,0 +1,70 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-cyan: #00f2ff;
+  --color-magenta: #ff00e5;
+}
+
+body {
+  @apply bg-[#030303] text-white overflow-hidden;
+  background-image: linear-gradient(rgba(0, 242, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 242, 255, 0.03) 1px, transparent 1px);
+  background-size: 30px 30px;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* Liquid Glass Utilities */
+.glass-panel {
+  @apply backdrop-blur-3xl bg-black/40 border border-t-white/10 border-l-white/10 border-b-black/60 border-r-black/60 shadow-2xl;
+}
+
+.glass-pill {
+  @apply backdrop-blur-2xl bg-white/5 border border-white/10 rounded-full px-4 py-1;
+}
+
+/* Scanline Overlay */
+.scanlines::before {
+  content: " ";
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0) 50%, rgba(0, 0, 0, 0.2) 50%, rgba(0, 0, 0, 0.2));
+  background-size: 100% 4px;
+  pointer-events: none;
+  z-index: 50;
+  opacity: 0.15;
+}
+
+/* Animations */
+@keyframes pulse-glow {
+
+  0%,
+  100% {
+    box-shadow: 0 0 5px rgba(0, 242, 255, 0.2);
+  }
+
+  50% {
+    box-shadow: 0 0 15px rgba(0, 242, 255, 0.5);
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 3s infinite;
+}
+
+@layer utilities {
+  .text-shadow-neon {
+    text-shadow: 0 0 10px rgba(0, 242, 255, 0.7);
+  }
+
+  /* 模拟图中背景的电路纹理 */
+  .bg-cyber-grid {
+    background-image: radial-gradient(circle, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+    background-size: 30px 30px;
+  }
+}
