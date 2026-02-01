@@ -1,10 +1,11 @@
 import { useMemo } from 'react';
-import { ReactFlow, Background, Controls, type Node, type Edge, useNodesState, useEdgesState } from '@xyflow/react';
+import { ReactFlow, Controls, type Node, type Edge, useNodesState, useEdgesState } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import HUDCapsule from '../UI/HUDCapsule';
 import HostNode from '../HostNode';
 import PeripheralNode from '../PeripheralNode';
 import PulseEdge from '../PulseEdge';
+import DotGrid from '../background/DotGrid';
 
 // Define the peripherals data
 const peripheralsData = [
@@ -114,7 +115,19 @@ export default function TopologyMap() {
                 minZoom={0.5}
                 maxZoom={2}
             >
-                <Background color="#00f2ff" gap={40} size={1} style={{ opacity: 0.03 }} />
+                <div style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0, pointerEvents: 'none', zIndex: -1 }}>
+                    <DotGrid
+                        dotSize={5}
+                        gap={15}
+                        baseColor="#271E37"
+                        activeColor="#5227FF"
+                        proximity={120}
+                        shockRadius={250}
+                        shockStrength={5}
+                        resistance={750}
+                        returnDuration={1.5}
+                    />
+                </div>
                 <Controls className="bg-black/50 border border-white/10 fill-white text-white opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
             </ReactFlow>
         </div>
