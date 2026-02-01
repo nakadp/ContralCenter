@@ -1,6 +1,6 @@
-import React, { memo } from 'react';
+import React, { memo, useEffect, useRef } from 'react';
 import { getSmoothStepPath, type EdgeProps } from '@xyflow/react';
-import { motion } from 'framer-motion';
+import { octavedNoise } from '../utils/noise';
 
 const PulseEdge = ({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data }: EdgeProps) => {
     // 0. Extend path endpoints to reach node centers
@@ -22,18 +22,139 @@ const PulseEdge = ({ id, sourceX, sourceY, targetX, targetY, sourcePosition, tar
     // 2. Data-driven logic
     // Casting data.load to number, defaulting to 27 (idling) if undefined
     const load = typeof data?.load === 'number' ? data.load : 27;
-    // Higher load = Faster flow (lower duration)
-    const duration = Math.max(1, 4.0 - (load / 100) * 3);
+    // Higher load = Faster flow (lower duration in original, higher speed here)
+    // Original duration: Math.max(1, 4.0 - (load / 100) * 3); -> 4s to 1s
+    // Reference speed: 1. Let's map load to speed. 
+    // Low load (27) -> Slow speed. High load (>80) -> Fast speed.
+    const speed = 0.5 + (load / 100) * 2; // Range: 0.5 to 2.5
 
     const isHighLoad = load > 80;
     // Cyan (#00f2ff) for normal, Magenta (#ff00e5) for high load/warning
     const primaryColor = isHighLoad ? "#ff00e5" : "#00f2ff";
 
+    // Refs for animation
+    const pathRef = useRef<SVGPathElement>(null); // The visible electric path
+    // Use multiple refs for layers if we want to match the reference's multi-pass glow
+    const blur1Ref = useRef<SVGPathElement>(null);
+    const blur2Ref = useRef<SVGPathElement>(null);
+    const hiddenPathRef = useRef<SVGPathElement>(null); // The hidden path for geometry
+
+    const timeRef = useRef(0);
+    const frameRef = useRef<number | null>(null);
+
+    useEffect(() => {
+        const path = pathRef.current;
+        const blur1 = blur1Ref.current;
+        const blur2 = blur2Ref.current;
+        const hiddenPath = hiddenPathRef.current;
+
+        if (!path || !hiddenPath) return;
+
+        // Constants from reference
+        const octaves = 10; // Match reference
+        const lacunarity = 1.6;
+        const gain = 0.7;
+        const amplitude = 0.12; // chaos
+        // The reference uses `amplitude = chaos` where chaos=0.12.
+
+        const frequency = 10;
+        const baseFlatness = 0;
+        const displacement = 60; // Match reference (was 30)
+
+        const animate = () => {
+            // Increment time
+            // Reference: timeRef.current += deltaTime * speed;
+            // Assuming 60fps, deltaTime ~ 0.016. speed = 1.
+            // My previous fixed step 0.01 * speed is roughly similar but let's tune.
+            // Reference speed default is 1.
+            timeRef.current += 0.02 * (isHighLoad ? 2 : 1); // Dynamic speed
+
+            const length = hiddenPath.getTotalLength();
+            if (length === 0) {
+                frameRef.current = requestAnimationFrame(animate);
+                return;
+            }
+
+            // Reference uses `getRoundedRectPoint` which is uniform. 
+            // SVG `getPointAtLength` is also uniform.
+
+            // Reference samples `approximatePerimeter / 2`. 
+            // length / 2 is huge if length is 500px -> 250 samples.
+            const sampleCount = Math.floor(length / 2);
+
+            let d = "";
+
+            for (let i = 0; i <= sampleCount; i++) {
+                const progress = i / sampleCount;
+                const point = hiddenPath.getPointAtLength(progress * length);
+
+                // Reference: noise(progress * 8, ...)
+                // My previous: progress * 4.
+
+                const xNoise = octavedNoise(
+                    progress * 8,
+                    octaves,
+                    lacunarity,
+                    gain,
+                    amplitude,
+                    frequency,
+                    timeRef.current,
+                    0,
+                    baseFlatness
+                );
+
+                const yNoise = octavedNoise(
+                    progress * 8,
+                    octaves,
+                    lacunarity,
+                    gain,
+                    amplitude,
+                    frequency,
+                    timeRef.current,
+                    1,
+                    baseFlatness
+                );
+
+                const dx = point.x + xNoise * displacement;
+                const dy = point.y + yNoise * displacement;
+
+                if (i === 0) {
+                    d += `M ${dx},${dy}`;
+                } else {
+                    d += ` L ${dx},${dy}`;
+                }
+            }
+
+            path.setAttribute("d", d);
+            if (blur1) blur1.setAttribute("d", d);
+            if (blur2) blur2.setAttribute("d", d);
+
+            frameRef.current = requestAnimationFrame(animate);
+        };
+
+        frameRef.current = requestAnimationFrame(animate);
+
+        return () => {
+            if (frameRef.current) cancelAnimationFrame(frameRef.current);
+        };
+    }, [edgePath, isHighLoad]);
+
     return (
         <>
             {/* 
+        HIDDEN LAYER: Geometry Reference
+      */}
+            <path
+                ref={hiddenPathRef}
+                d={edgePath}
+                fill="none"
+                stroke="none"
+                style={{ opacity: 0, pointerEvents: 'none' }}
+                aria-hidden="true"
+            />
+
+            {/* 
         LAYER 1: The Containment Pipe (Backing)
-        Dark foundation to make the pipe pop against background.
       */}
             <path
                 id={id}
@@ -47,61 +168,69 @@ const PulseEdge = ({ id, sourceX, sourceY, targetX, targetY, sourcePosition, tar
             />
 
             {/* 
-        LAYER 2: Global Atmospheric Glow (The Halo)
-        Wide, blurred glow to create the "emitting light" effect.
+        LAYER 2: Global Atmospheric Glow (Static Halo - Restored for base color band)
       */}
             <path
                 d={edgePath}
                 fill="none"
                 strokeWidth={20}
                 stroke={primaryColor}
-                strokeOpacity={0.4}
+                strokeOpacity={0.3} // Increased from 0.1 to restore "color band" presence
                 className="blur-md"
             />
 
-
-
             {/* 
         LAYER 4: The Solid Pipe Structure (Glass Tube)
-        The visible physical tube wall. Overlays the highlights to restrict them to edges.
       */}
             <path
                 d={edgePath}
                 fill="none"
                 strokeWidth={10}
                 stroke={primaryColor}
-                strokeOpacity={0.3} // Low opacity to see the plasma inside clearly
+                strokeOpacity={0.4} // Increased significantly to be the visible "base"
             />
 
             {/* 
-        LAYER 5: The Pulse Current (Plasma Flow)
-        The moving energy stream inside the pipe.
+        LAYER 5: The Electric Current (Electric Jitter)
+        Recreation of reference layers but dimmed:
       */}
-            {/* 
-        LAYER 5: The Pulse Current (Moving Halo)
-        Soft, boundary-less light pulse.
-      */}
-            <motion.path
+
+            {/* Wide Glow (Layer 3 in reference equivalent) - Dimmed */}
+            <path
+                ref={blur2Ref}
                 d={edgePath}
                 fill="none"
-                strokeWidth={12} // Slightly wider
                 stroke={primaryColor}
-                strokeDasharray="40 160" // Longer, softer pulse
-                initial={{ strokeDashoffset: 200 }}
-                animate={{ strokeDashoffset: 0 }}
-                transition={{
-                    duration: duration,
-                    repeat: Infinity,
-                    ease: "linear"
-                }}
+                strokeWidth={4}
+                style={{ filter: 'blur(4px)', opacity: 0.3 }} // Reduced from 0.5
+            />
+
+            {/* Main Beam (Layer 2 in reference equivalent) - Dimmed */}
+            <path
+                ref={blur1Ref}
+                d={edgePath}
+                fill="none"
+                stroke={primaryColor}
+                strokeWidth={2}
+                style={{ filter: 'blur(1px)', opacity: 0.6 }} // Reduced from 0.8
+            />
+
+            {/* Core Core (Layer 1 almost) - Dimmed & removed drop-shadow bloom */}
+            <path
+                ref={pathRef}
+                d={edgePath}
+                fill="none"
+                stroke={primaryColor}
+                strokeWidth={1.5}
+                strokeLinecap="round"
+                strokeLinejoin="round"
                 style={{
-                    willChange: 'stroke-dashoffset',
-                    strokeLinecap: 'round',
-                    strokeOpacity: 0.8,
-                    // High blur to remove boundaries, plus a glow
-                    filter: `blur(8px) drop-shadow(0 0 8px ${primaryColor}) brightness(1.5)`
+                    // filter: `drop-shadow(0 0 2px ${primaryColor})`, // Removed heavy bloom
+                    opacity: 0.8, // Reduced from 1.0
+                    vectorEffect: 'non-scaling-stroke'
                 }}
             />
+
         </>
     );
 };
