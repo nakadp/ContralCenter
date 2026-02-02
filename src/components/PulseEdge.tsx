@@ -26,11 +26,7 @@ const PulseEdge = ({ id, sourceX, sourceY, targetX, targetY, sourcePosition, tar
     // Original duration: Math.max(1, 4.0 - (load / 100) * 3); -> 4s to 1s
     // Reference speed: 1. Let's map load to speed. 
     // Low load (27) -> Slow speed. High load (>80) -> Fast speed.
-    const speed = 0.5 + (load / 100) * 2; // Range: 0.5 to 2.5
-
     const isHighLoad = load > 80;
-    // Cyan (#00f2ff) for normal, Magenta (#ff00e5) for high load/warning
-    const primaryColor = isHighLoad ? "#ff00e5" : "#00f2ff";
 
     // Refs for animation
     const pathRef = useRef<SVGPathElement>(null); // The visible electric path
@@ -139,6 +135,18 @@ const PulseEdge = ({ id, sourceX, sourceY, targetX, targetY, sourcePosition, tar
         };
     }, [edgePath, isHighLoad]);
 
+    // Data-driven selection state
+    const targetSelected = data?.targetSelected === true;
+
+    // Color Logic: 
+    // If selected -> Magenta (#ff00e5)
+    // Else -> Cyan (#00f2ff)
+    const activeColor = targetSelected ? "#ff00e5" : "#00f2ff";
+
+    // Glow Intensity Logic:
+    // If selected -> Increase by 20% (multiply opacity by 1.2)
+    const glowMultiplier = targetSelected ? 1.2 : 1.0;
+
     return (
         <>
             {/* 
@@ -174,8 +182,8 @@ const PulseEdge = ({ id, sourceX, sourceY, targetX, targetY, sourcePosition, tar
                 d={edgePath}
                 fill="none"
                 strokeWidth={20}
-                stroke={primaryColor}
-                strokeOpacity={0.3} // Increased from 0.1 to restore "color band" presence
+                stroke={activeColor}
+                strokeOpacity={0.3 * glowMultiplier} // Increased from 0.1 to restore "color band" presence
                 className="blur-md"
             />
 
@@ -186,8 +194,8 @@ const PulseEdge = ({ id, sourceX, sourceY, targetX, targetY, sourcePosition, tar
                 d={edgePath}
                 fill="none"
                 strokeWidth={10}
-                stroke={primaryColor}
-                strokeOpacity={0.4} // Increased significantly to be the visible "base"
+                stroke={activeColor}
+                strokeOpacity={0.4 * glowMultiplier} // Increased significantly to be the visible "base"
             />
 
             {/* 
@@ -200,9 +208,9 @@ const PulseEdge = ({ id, sourceX, sourceY, targetX, targetY, sourcePosition, tar
                 ref={blur2Ref}
                 d={edgePath}
                 fill="none"
-                stroke={primaryColor}
+                stroke={activeColor}
                 strokeWidth={4}
-                style={{ filter: 'blur(4px)', opacity: 0.3 }} // Reduced from 0.5
+                style={{ filter: 'blur(4px)', opacity: 0.3 * glowMultiplier }} // Reduced from 0.5
             />
 
             {/* Main Beam (Layer 2 in reference equivalent) - Dimmed */}
@@ -210,9 +218,9 @@ const PulseEdge = ({ id, sourceX, sourceY, targetX, targetY, sourcePosition, tar
                 ref={blur1Ref}
                 d={edgePath}
                 fill="none"
-                stroke={primaryColor}
+                stroke={activeColor}
                 strokeWidth={2}
-                style={{ filter: 'blur(1px)', opacity: 0.6 }} // Reduced from 0.8
+                style={{ filter: 'blur(1px)', opacity: 0.6 * glowMultiplier }} // Reduced from 0.8
             />
 
             {/* Core Core (Layer 1 almost) - Dimmed & removed drop-shadow bloom */}
@@ -220,13 +228,13 @@ const PulseEdge = ({ id, sourceX, sourceY, targetX, targetY, sourcePosition, tar
                 ref={pathRef}
                 d={edgePath}
                 fill="none"
-                stroke={primaryColor}
+                stroke={activeColor}
                 strokeWidth={1.5}
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 style={{
                     // filter: `drop-shadow(0 0 2px ${primaryColor})`, // Removed heavy bloom
-                    opacity: 0.8, // Reduced from 1.0
+                    opacity: 0.8 * glowMultiplier, // Reduced from 1.0
                     vectorEffect: 'non-scaling-stroke'
                 }}
             />

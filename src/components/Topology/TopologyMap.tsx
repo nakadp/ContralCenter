@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import { ReactFlow, Controls, type Node, type Edge, useNodesState, useEdgesState } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import HUDCapsule from '../UI/HUDCapsule';
@@ -71,8 +71,8 @@ const generateLayout = () => {
 const { initialNodes, initialEdges } = generateLayout();
 
 export default function TopologyMap() {
-    const [nodes, , onNodesChange] = useNodesState(initialNodes);
-    const [edges, , onEdgesChange] = useEdgesState(initialEdges);
+    const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+    const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
     const nodeTypes = useMemo(() => ({
         host: HostNode,
@@ -82,6 +82,25 @@ export default function TopologyMap() {
     const edgeTypes = useMemo(() => ({
         pulse: PulseEdge,
     }), []);
+
+    // Sync node selection to edge data to trigger visual updates
+    useEffect(() => {
+        setEdges((eds) =>
+            eds.map((edge) => {
+                const targetNode = nodes.find((n) => n.id === edge.target);
+                const isSelected = targetNode?.selected || false;
+
+                // Only update if changed to avoid unnecessary re-renders
+                if (edge.data?.targetSelected !== isSelected) {
+                    return {
+                        ...edge,
+                        data: { ...edge.data, targetSelected: isSelected },
+                    };
+                }
+                return edge;
+            })
+        );
+    }, [nodes, setEdges]); // Depend on nodes to detect selection changes
 
     return (
         <div className="w-full h-full relative group">
