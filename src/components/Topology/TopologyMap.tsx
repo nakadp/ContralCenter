@@ -1,7 +1,7 @@
 import { useMemo, useEffect } from 'react';
 import { ReactFlow, Controls, type Node, type Edge, useNodesState, useEdgesState } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import HUDCapsule from '../UI/HUDCapsule';
+import SystemMonitor from '../UI/SystemMonitor';
 import HostNode from '../HostNode';
 import PeripheralNode from '../PeripheralNode';
 import PulseEdge from '../PulseEdge';
@@ -104,7 +104,7 @@ export default function TopologyMap() {
 
     return (
         <div className="w-full h-full relative group">
-            <HUDCapsule />
+            <SystemMonitor />
 
             {/* Ambient Glow */}
             <div className="absolute inset-0 bg-radial-gradient from-aether-cyan/5 via-transparent to-transparent pointer-events-none" />
