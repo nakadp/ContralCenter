@@ -1,6 +1,16 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Cpu, ArrowDown, ArrowUp, Zap, Network } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { listen } from '@tauri-apps/api/event';
+
+interface SystemStats {
+    cpu_usage: number;
+    cpu_temp: number;
+    gpu_usage: number;
+    gpu_temp: number;
+    net_down: number;
+    net_up: number;
+}
 
 const MonitorItem = ({
     icon: Icon,
@@ -76,26 +86,59 @@ const MonitorItem = ({
     </div>
 );
 
+// Format bytes to human readable string
+const formatBytes = (bytes: number) => {
+    if (bytes === 0) return '0B/s';
+    const sizes = ['B/s', 'KB/s', 'MB/s', 'GB/s'];
+    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+    return parseFloat((bytes / Math.pow(1024, i)).toFixed(1)) + ' ' + sizes[i];
+};
+
 export default function SystemMonitor() {
+    const [stats, setStats] = useState<SystemStats>({
+        cpu_usage: 0,
+        cpu_temp: 0,
+        gpu_usage: 0,
+        gpu_temp: 0,
+        net_down: 0,
+        net_up: 0
+    });
+
+    useEffect(() => {
+        let unlisten: (() => void) | undefined;
+
+        const setupListener = async () => {
+            unlisten = await listen<SystemStats>('system-stats', (event) => {
+                setStats(event.payload);
+            });
+        };
+
+        setupListener();
+
+        return () => {
+            if (unlisten) unlisten();
+        };
+    }, []);
+
     return (
         <div className="absolute top-6 right-6 flex items-center gap-4 z-50 select-none">
             <MonitorItem
                 icon={Cpu}
                 label="CPU"
-                value="12%"
-                extra="55°C"
+                value={`${Math.round(stats.cpu_usage)}%`}
+                extra={stats.cpu_temp > 0 ? `${Math.round(stats.cpu_temp)}°C` : undefined}
             />
             <MonitorItem
                 icon={Zap}
                 label="GPU"
-                value="8%"
-                extra="42°C"
+                value={`${Math.round(stats.gpu_usage)}%`}
+                extra={stats.gpu_temp > 0 ? `${Math.round(stats.gpu_temp)}°C` : undefined}
             />
             <MonitorItem
                 icon={Network}
                 label="NET"
-                value="25MB/s"
-                extra="5MB/s"
+                value={formatBytes(stats.net_down)}
+                extra={formatBytes(stats.net_up)}
                 isNet={true}
             />
         </div>
