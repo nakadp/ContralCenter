@@ -2,6 +2,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { ChevronDown, Clock, BarChart2 } from 'lucide-react';
 import { clsx } from 'clsx';
 import GlassCard from '../UI/GlassCard';
+import { DATA_CONFIG, generateData } from './dataUtils';
+import type { DataPoint } from './dataUtils';
 
 // ----- Constants & Types -----
 
@@ -17,30 +19,6 @@ const TIME_RANGES = [
     { label: "Past 7 Days", value: 7 * 24 * 60 * 60 * 1000 },
     { label: "Past 30 Days", value: 30 * 24 * 60 * 60 * 1000 },
 ];
-
-const DATA_CONFIG: Record<string, { label: string, color: string }> = {
-    'cpu_util': { label: 'CPU Usage', color: '#06b6d4' }, // Cyan
-    'gpu_util': { label: 'GPU Usage', color: '#d946ef' }, // Fuchsia
-    'gpu_temp': { label: 'GPU Temp', color: '#ef4444' }, // Red
-    'net_up': { label: 'Up Speed', color: '#22c55e' }, // Green
-    'net_down': { label: 'Down Speed', color: '#eab308' }, // Yellow
-    'in_temp': { label: 'In Temp', color: '#f97316' }, // Orange
-    'in_hum': { label: 'In Hum', color: '#3b82f6' }, // Blue
-    'in_light': { label: 'In Light', color: '#8b5cf6' }, // Violet
-    'in_co2': { label: 'In CO2', color: '#6366f1' }, // Indigo
-    'pc_pwr': { label: 'PC Pwr', color: '#ec4899' }, // Pink
-    'out_light': { label: 'Out Light', color: '#f59e0b' }, // Amber
-    'out_wind': { label: 'Out Wind', color: '#14b8a6' }, // Teal
-    'pv_pwr': { label: 'PV Pwr', color: '#84cc16' }, // Lime
-    'pv_volt': { label: 'PV Volt', color: '#10b981' }, // Emerald
-    'pv_curr': { label: 'PV Curr', color: '#0ea5e9' }, // Sky
-    'wind_pwr': { label: 'Wind Pwr', color: '#a855f7' }, // Purple
-};
-
-type DataPoint = {
-    timestamp: number;
-    [key: string]: number;
-};
 
 // ----- Helper Components -----
 
@@ -67,30 +45,32 @@ const TogglePill = ({ color, label, active, onClick }: { color: string, label: s
     </button>
 );
 
-const Dropdown = ({ icon: Icon, value, options, onSelect }: { icon: any, value: string, options: { label: string, value: number }[], onSelect: (val: number) => void }) => (
-    <div className="relative group">
+const Dropdown = ({ icon: Icon, value, options, onSelect, disabled }: { icon: any, value: string, options: { label: string, value: number }[], onSelect: (val: number) => void, disabled?: boolean }) => (
+    <div className={clsx("relative group", disabled && "pointer-events-none opacity-50 grayscale")}>
         <button className="flex items-center gap-2 bg-black/40 border border-white/10 hover:border-cyan-500/50 rounded-lg px-4 py-2 text-xs font-mono text-white transition-all">
             <Icon size={14} className="text-cyan-400" />
             <span className="text-white/70">{value}</span>
             <ChevronDown size={12} className="text-white/30 ml-2 group-hover:text-cyan-400" />
         </button>
         {/* Helper bridge to maintain hover state */}
-        <div className="absolute top-full left-0 w-48 pt-2 opacity-0 scale-95 pointer-events-none group-hover:opacity-100 group-hover:scale-100 group-hover:pointer-events-auto transition-all z-50 origin-top-left">
-            <div className="bg-black/90 backdrop-blur-xl border border-white/10 rounded-xl p-1 shadow-xl">
-                {options.map(opt => (
-                    <div
-                        key={opt.label}
-                        onClick={() => onSelect(opt.value)}
-                        className={clsx(
-                            "px-3 py-2 text-xs rounded-lg cursor-pointer font-mono transition-colors",
-                            value === opt.label ? "bg-cyan-500/20 text-cyan-400" : "text-white/70 hover:text-white hover:bg-white/10"
-                        )}
-                    >
-                        {opt.label}
-                    </div>
-                ))}
+        {!disabled && (
+            <div className="absolute top-full left-0 w-48 pt-2 opacity-0 scale-95 pointer-events-none group-hover:opacity-100 group-hover:scale-100 group-hover:pointer-events-auto transition-all z-50 origin-top-left">
+                <div className="bg-black/90 backdrop-blur-xl border border-white/10 rounded-xl p-1 shadow-xl">
+                    {options.map(opt => (
+                        <div
+                            key={opt.label}
+                            onClick={() => onSelect(opt.value)}
+                            className={clsx(
+                                "px-3 py-2 text-xs rounded-lg cursor-pointer font-mono transition-colors",
+                                value === opt.label ? "bg-cyan-500/20 text-cyan-400" : "text-white/70 hover:text-white hover:bg-white/10"
+                            )}
+                        >
+                            {opt.label}
+                        </div>
+                    ))}
+                </div>
             </div>
-        </div>
+        )}
     </div>
 );
 
@@ -98,21 +78,16 @@ const Dropdown = ({ icon: Icon, value, options, onSelect }: { icon: any, value: 
 
 interface DataAnalysisViewProps {
     selectedData: string[];
+    dateRange: { start: string; end: string };
 }
 
-export default function DataAnalysisView({ selectedData }: DataAnalysisViewProps) {
+export default function DataAnalysisView({ selectedData, dateRange }: DataAnalysisViewProps) {
     // Controls State
     const [selectedResolution, setSelectedResolution] = useState(RESOLUTIONS[0].value); // Default 1 Min
     const [selectedRange, setSelectedRange] = useState(TIME_RANGES[0].value); // Default 1 Hour
 
     // Local Visibility State (Toggle keys on/off temporarily)
-    // Initialize with all selected, but we need to track local state.
-    // If selectedData changes, we should probably reset or merge this. 
-    // For simplicity, we'll store a list of HIDDEN keys.
     const [hiddenSeries, setHiddenSeries] = useState<string[]>([]);
-
-    // Clear hidden series if selectedData changes substantially? 
-    // Actually, keeping track of hidden keys is fine even if they are removed from selectedData.
 
     const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
     const [now, setNow] = useState(Date.now());
@@ -123,44 +98,33 @@ export default function DataAnalysisView({ selectedData }: DataAnalysisViewProps
     const CHART_MARGIN_BOTTOM = 40; // Space for X-axis labels
     const CHART_HEIGHT = VIEW_HEIGHT - CHART_MARGIN_BOTTOM;
 
-    // Generate deterministic mock data based on time
-    const generateData = (endTime: number, range: number, resolution: number): DataPoint[] => {
-        const alignedEnd = Math.floor(endTime / resolution) * resolution;
-        const startTime = alignedEnd - range - resolution;
-        const count = Math.ceil((range + resolution) / resolution) + 2;
-        const safeCount = Math.min(count, 5000);
+    // Calculate effective time parameters
+    const isCustomRange = !!dateRange.start;
 
-        const data: DataPoint[] = [];
-
-        for (let i = 0; i < safeCount; i++) {
-            const t = startTime + (i * resolution);
-            if (t > endTime) break;
-            const tf = t / 300000; // Time factor
-
-            const point: DataPoint = { timestamp: t };
-
-            // Generate mock values for all known keys
-            Object.keys(DATA_CONFIG).forEach((key, idx) => {
-                // Unique phase shift based on index to make lines look different
-                const phase = idx * 13.7;
-                // Mix of sin/cos for realism
-                const raw = Math.sin(tf + phase) * 30 + Math.cos(tf * 0.5 + phase * 2) * 20 + 50;
-                // Add some noise
-                const noise = (Math.sin(t / 10000 * (idx + 1)) * 5);
-
-                point[key] = Math.max(0, Math.min(100, raw + noise));
-            });
-
-            data.push(point);
+    // If end is fixed, we use that. If end is empty, we use Live `now`.
+    const endTime = useMemo(() => {
+        if (isCustomRange && dateRange.end) {
+            return new Date(dateRange.end).getTime();
         }
-        return data;
-    };
+        return now;
+    }, [isCustomRange, dateRange.end, now]);
 
-    const data = useMemo(() => generateData(now, selectedRange, selectedResolution), [now, selectedRange, selectedResolution]);
+    // If custom range, calculate diff. Else use selected preset.
+    const effectiveRange = useMemo(() => {
+        if (isCustomRange) {
+            const startT = new Date(dateRange.start).getTime();
+            // Ensure positive range
+            return Math.max(1000, endTime - startT);
+        }
+        return selectedRange;
+    }, [isCustomRange, dateRange.start, endTime, selectedRange]);
 
-    // Update time
+    const data = useMemo(() => generateData(endTime, effectiveRange, selectedResolution), [endTime, effectiveRange, selectedResolution]);
+
+    // Update time (tick only if live)
     useEffect(() => {
         const interval = setInterval(() => {
+            // Even if fixed end time, we might still want 'now' to tick for UI checks or if we switch back
             setNow(Date.now());
         }, 1000);
         return () => clearInterval(interval);
@@ -188,8 +152,8 @@ export default function DataAnalysisView({ selectedData }: DataAnalysisViewProps
     const getPath = (key: string) => {
         if (data.length < 2) return "";
 
-        const winStart = now - selectedRange;
-        const winRange = selectedRange;
+        const winStart = endTime - effectiveRange;
+        const winRange = effectiveRange;
 
         const getX = (t: number) => ((t - winStart) / winRange) * VIEW_WIDTH;
         const getY = (v: number) => {
@@ -231,9 +195,9 @@ export default function DataAnalysisView({ selectedData }: DataAnalysisViewProps
 
     const formatTime = (ts: number) => {
         const date = new Date(ts);
-        if (selectedRange <= 60 * 60 * 1000) { // 1 Hour
+        if (effectiveRange <= 60 * 60 * 1000) { // 1 Hour
             return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        } else if (selectedRange <= 24 * 60 * 60 * 1000) { // 24 Hours
+        } else if (effectiveRange <= 24 * 60 * 60 * 1000) { // 24 Hours
             return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         } else {
             return date.toLocaleDateString([], { month: '2-digit', day: '2-digit' }) + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -244,13 +208,13 @@ export default function DataAnalysisView({ selectedData }: DataAnalysisViewProps
     const xTicks = useMemo(() => {
         const ticks = [];
         const count = 8; // Denser ticks
-        const step = selectedRange / (count - 1);
-        const startTime = now - selectedRange;
+        const step = effectiveRange / (count - 1);
+        const startTime = endTime - effectiveRange;
         for (let i = 0; i < count; i++) {
             ticks.push(startTime + i * step);
         }
         return ticks;
-    }, [now, selectedRange]);
+    }, [endTime, effectiveRange]);
 
     const yTicks = useMemo(() => {
         const steps = 5;
@@ -284,6 +248,7 @@ export default function DataAnalysisView({ selectedData }: DataAnalysisViewProps
                             value={currentRangeLabel}
                             options={TIME_RANGES}
                             onSelect={setSelectedRange}
+                            disabled={isCustomRange}
                         />
                     </div>
 
@@ -328,8 +293,8 @@ export default function DataAnalysisView({ selectedData }: DataAnalysisViewProps
                             const rect = e.currentTarget.getBoundingClientRect();
                             const x = e.clientX - rect.left;
                             const percentage = x / rect.width;
-                            const winStart = now - selectedRange;
-                            const winRange = selectedRange;
+                            const winStart = endTime - effectiveRange;
+                            const winRange = effectiveRange;
                             const hoverTime = winStart + percentage * winRange;
 
                             let closestIdx = 0;
@@ -353,7 +318,7 @@ export default function DataAnalysisView({ selectedData }: DataAnalysisViewProps
 
                         {/* X Axis Labels */}
                         {xTicks.map((tick, i) => {
-                            const pos = ((tick - (now - selectedRange)) / selectedRange) * VIEW_WIDTH;
+                            const pos = ((tick - (endTime - effectiveRange)) / effectiveRange) * VIEW_WIDTH;
                             return (
                                 <text
                                     key={i}
@@ -409,9 +374,9 @@ export default function DataAnalysisView({ selectedData }: DataAnalysisViewProps
                         {hoveredIndex !== null && data[hoveredIndex] && (
                             <g>
                                 <line
-                                    x1={((data[hoveredIndex].timestamp - (now - selectedRange)) / selectedRange) * VIEW_WIDTH}
+                                    x1={((data[hoveredIndex].timestamp - (endTime - effectiveRange)) / effectiveRange) * VIEW_WIDTH}
                                     y1="0"
-                                    x2={((data[hoveredIndex].timestamp - (now - selectedRange)) / selectedRange) * VIEW_WIDTH}
+                                    x2={((data[hoveredIndex].timestamp - (endTime - effectiveRange)) / effectiveRange) * VIEW_WIDTH}
                                     y2={CHART_HEIGHT}
                                     stroke="white"
                                     strokeWidth="1"
@@ -422,7 +387,7 @@ export default function DataAnalysisView({ selectedData }: DataAnalysisViewProps
                                     const val = data[hoveredIndex][key];
                                     if (val === undefined) return null;
 
-                                    const cx = ((data[hoveredIndex].timestamp - (now - selectedRange)) / selectedRange) * VIEW_WIDTH;
+                                    const cx = ((data[hoveredIndex].timestamp - (endTime - effectiveRange)) / effectiveRange) * VIEW_WIDTH;
                                     const cy = CHART_HEIGHT - (val / maxVal) * CHART_HEIGHT;
                                     const config = DATA_CONFIG[key] || { color: '#fff' };
 

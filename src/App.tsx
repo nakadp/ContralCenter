@@ -10,6 +10,7 @@ type ViewType = 'dashboard' | 'analysis';
 function App() {
   const [currentView, setCurrentView] = useState<ViewType>('dashboard');
   const [selectedData, setSelectedData] = useState<string[]>(['cpu_util', 'gpu_util', 'net_down']);
+  const [dateRange, setDateRange] = useState<{ start: string; end: string }>({ start: '', end: '' });
 
   return (
     <div className="flex w-screen h-screen overflow-hidden scanlines relative text-white selection:bg-aether-cyan selection:text-black">
@@ -27,7 +28,7 @@ function App() {
           <div className="w-full h-full p-6 pr-0 flex gap-6">
             {/* Main Chart Card */}
             <div className="flex-1 min-w-0">
-              <DataAnalysisView selectedData={selectedData} />
+              <DataAnalysisView selectedData={selectedData} dateRange={dateRange} />
             </div>
           </div>
         )}
@@ -41,6 +42,8 @@ function App() {
         <div className="w-[25%] min-w-[320px] p-6 h-full flex-shrink-0">
           <AnalysisParameters
             selectedData={selectedData}
+            dateRange={dateRange}
+            onDateRangeChange={setDateRange}
             onToggle={(id) => {
               setSelectedData(prev =>
                 prev.includes(id)
