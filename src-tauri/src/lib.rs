@@ -13,6 +13,8 @@ pub fn run() {
                         .build(),
                 )?;
             }
+            app.handle().plugin(tauri_plugin_dialog::init())?;
+            app.handle().plugin(tauri_plugin_fs::init())?;
             // Start background monitoring thread
             system_monitor::start_monitoring(app.handle());
             Ok(())

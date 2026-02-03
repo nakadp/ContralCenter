@@ -4,7 +4,8 @@ import { twMerge } from 'tailwind-merge';
 import GlassCard from '../UI/GlassCard';
 import { Check, Calendar, Download, RefreshCw, ChevronRight } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import FileSaver from 'file-saver';
+import { save } from '@tauri-apps/plugin-dialog';
+import { writeFile } from '@tauri-apps/plugin-fs';
 import { DATA_CONFIG, generateData } from './dataUtils';
 
 function cn(...inputs: (string | undefined | null | false)[]) {
@@ -65,13 +66,24 @@ export default function AnalysisParameters({ selectedData, dateRange, onDateRang
             return row;
         });
 
+        // Open Native Save Dialog
+        const path = await save({
+            filters: [{
+                name: 'Excel Workbook',
+                extensions: ['xlsx'],
+            }],
+            defaultPath: `analysis_export_${new Date().toISOString().slice(0, 10)}.xlsx`,
+        });
+
+        if (!path) return; // User cancelled
+
         const wb = XLSX.utils.book_new();
         const ws = XLSX.utils.json_to_sheet(exportData);
         XLSX.utils.book_append_sheet(wb, ws, "Analysis Data");
 
+        // Write file using Tauri FS
         const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-        const blob = new Blob([wbout], { type: "application/octet-stream" });
-        FileSaver.saveAs(blob, `analysis_export_${new Date().toISOString().slice(0, 10)}.xlsx`);
+        await writeFile(path, new Uint8Array(wbout));
     };
 
     return (
