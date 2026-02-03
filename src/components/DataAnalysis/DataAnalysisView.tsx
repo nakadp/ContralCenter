@@ -57,19 +57,22 @@ const Dropdown = ({ icon: Icon, value, options, onSelect }: { icon: any, value: 
             <span className="text-white/70">{value}</span>
             <ChevronDown size={12} className="text-white/30 ml-2 group-hover:text-cyan-400" />
         </button>
-        <div className="absolute top-full left-0 mt-2 w-48 bg-black/90 backdrop-blur-xl border border-white/10 rounded-xl p-1 shadow-xl opacity-0 scale-95 pointer-events-none group-hover:opacity-100 group-hover:scale-100 group-hover:pointer-events-auto transition-all z-50 origin-top-left">
-            {options.map(opt => (
-                <div
-                    key={opt.label}
-                    onClick={() => onSelect(opt.value)}
-                    className={clsx(
-                        "px-3 py-2 text-xs rounded-lg cursor-pointer font-mono transition-colors",
-                        value === opt.label ? "bg-cyan-500/20 text-cyan-400" : "text-white/70 hover:text-white hover:bg-white/10"
-                    )}
-                >
-                    {opt.label}
-                </div>
-            ))}
+        {/* Helper bridge to maintain hover state */}
+        <div className="absolute top-full left-0 w-48 pt-2 opacity-0 scale-95 pointer-events-none group-hover:opacity-100 group-hover:scale-100 group-hover:pointer-events-auto transition-all z-50 origin-top-left">
+            <div className="bg-black/90 backdrop-blur-xl border border-white/10 rounded-xl p-1 shadow-xl">
+                {options.map(opt => (
+                    <div
+                        key={opt.label}
+                        onClick={() => onSelect(opt.value)}
+                        className={clsx(
+                            "px-3 py-2 text-xs rounded-lg cursor-pointer font-mono transition-colors",
+                            value === opt.label ? "bg-cyan-500/20 text-cyan-400" : "text-white/70 hover:text-white hover:bg-white/10"
+                        )}
+                    >
+                        {opt.label}
+                    </div>
+                ))}
+            </div>
         </div>
     </div>
 );
