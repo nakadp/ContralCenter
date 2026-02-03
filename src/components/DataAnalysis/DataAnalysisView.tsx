@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { ChevronDown, Clock, BarChart2 } from 'lucide-react';
 import { clsx } from 'clsx';
 import GlassCard from '../UI/GlassCard';
@@ -18,11 +18,28 @@ const TIME_RANGES = [
     { label: "Past 30 Days", value: 30 * 24 * 60 * 60 * 1000 },
 ];
 
+const DATA_CONFIG: Record<string, { label: string, color: string }> = {
+    'cpu_util': { label: 'CPU Usage', color: '#06b6d4' }, // Cyan
+    'gpu_util': { label: 'GPU Usage', color: '#d946ef' }, // Fuchsia
+    'gpu_temp': { label: 'GPU Temp', color: '#ef4444' }, // Red
+    'net_up': { label: 'Up Speed', color: '#22c55e' }, // Green
+    'net_down': { label: 'Down Speed', color: '#eab308' }, // Yellow
+    'in_temp': { label: 'In Temp', color: '#f97316' }, // Orange
+    'in_hum': { label: 'In Hum', color: '#3b82f6' }, // Blue
+    'in_light': { label: 'In Light', color: '#8b5cf6' }, // Violet
+    'in_co2': { label: 'In CO2', color: '#6366f1' }, // Indigo
+    'pc_pwr': { label: 'PC Pwr', color: '#ec4899' }, // Pink
+    'out_light': { label: 'Out Light', color: '#f59e0b' }, // Amber
+    'out_wind': { label: 'Out Wind', color: '#14b8a6' }, // Teal
+    'pv_pwr': { label: 'PV Pwr', color: '#84cc16' }, // Lime
+    'pv_volt': { label: 'PV Volt', color: '#10b981' }, // Emerald
+    'pv_curr': { label: 'PV Curr', color: '#0ea5e9' }, // Sky
+    'wind_pwr': { label: 'Wind Pwr', color: '#a855f7' }, // Purple
+};
+
 type DataPoint = {
     timestamp: number;
-    cpu: number;
-    gpu: number;
-    net: number;
+    [key: string]: number;
 };
 
 // ----- Helper Components -----
@@ -31,9 +48,9 @@ const TogglePill = ({ color, label, active, onClick }: { color: string, label: s
     <button
         onClick={onClick}
         className={clsx(
-            "flex items-center gap-2 px-3 py-1.5 rounded-full border text-[10px] font-bold tracking-wider transition-all duration-300 uppercase",
+            "flex items-center gap-2 px-3 py-1.5 rounded-full border text-[10px] font-bold tracking-wider transition-all duration-300 uppercase whitespace-nowrap",
             active
-                ? `bg-${color}-500/20 border-${color}-500/50 text-white shadow-[0_0_10px_rgba(var(--color-${color}),0.3)]`
+                ? `bg-[${color}]/20 text-white shadow-[0_0_10px_rgba(255,255,255,0.1)]`
                 : "bg-white/5 border-white/5 text-white/40 hover:bg-white/10 hover:text-white/60"
         )}
         style={{
@@ -79,13 +96,24 @@ const Dropdown = ({ icon: Icon, value, options, onSelect }: { icon: any, value: 
 
 // ----- Main Component -----
 
-export default function DataAnalysisView() {
+interface DataAnalysisViewProps {
+    selectedData: string[];
+}
+
+export default function DataAnalysisView({ selectedData }: DataAnalysisViewProps) {
     // Controls State
     const [selectedResolution, setSelectedResolution] = useState(RESOLUTIONS[0].value); // Default 1 Min
     const [selectedRange, setSelectedRange] = useState(TIME_RANGES[0].value); // Default 1 Hour
 
-    // Data State
-    const [activeSeries, setActiveSeries] = useState({ cpu: true, gpu: true, net: true });
+    // Local Visibility State (Toggle keys on/off temporarily)
+    // Initialize with all selected, but we need to track local state.
+    // If selectedData changes, we should probably reset or merge this. 
+    // For simplicity, we'll store a list of HIDDEN keys.
+    const [hiddenSeries, setHiddenSeries] = useState<string[]>([]);
+
+    // Clear hidden series if selectedData changes substantially? 
+    // Actually, keeping track of hidden keys is fine even if they are removed from selectedData.
+
     const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
     const [now, setNow] = useState(Date.now());
 
@@ -107,15 +135,23 @@ export default function DataAnalysisView() {
         for (let i = 0; i < safeCount; i++) {
             const t = startTime + (i * resolution);
             if (t > endTime) break;
+            const tf = t / 300000; // Time factor
 
-            const timeFactor = t / 300000;
+            const point: DataPoint = { timestamp: t };
 
-            data.push({
-                timestamp: t,
-                cpu: Math.min(100, Math.max(0, Math.sin(timeFactor) * 20 + Math.cos(timeFactor * 0.5) * 15 + 40)),
-                gpu: Math.min(100, Math.max(0, Math.cos(timeFactor * 0.7) * 25 + Math.sin(timeFactor * 0.3) * 10 + 35)),
-                net: Math.min(100, Math.max(0, Math.sin(timeFactor * 1.2) * 30 + 30)),
+            // Generate mock values for all known keys
+            Object.keys(DATA_CONFIG).forEach((key, idx) => {
+                // Unique phase shift based on index to make lines look different
+                const phase = idx * 13.7;
+                // Mix of sin/cos for realism
+                const raw = Math.sin(tf + phase) * 30 + Math.cos(tf * 0.5 + phase * 2) * 20 + 50;
+                // Add some noise
+                const noise = (Math.sin(t / 10000 * (idx + 1)) * 5);
+
+                point[key] = Math.max(0, Math.min(100, raw + noise));
             });
+
+            data.push(point);
         }
         return data;
     };
@@ -130,21 +166,26 @@ export default function DataAnalysisView() {
         return () => clearInterval(interval);
     }, []);
 
+    // Active keys to display
+    const activeKeys = useMemo(() => selectedData.filter(key => !hiddenSeries.includes(key)), [selectedData, hiddenSeries]);
+
     // Dynamic Scales
     const { maxVal } = useMemo(() => {
         let max = 0;
+        if (activeKeys.length === 0) return { maxVal: 100 }; // Default
+
         data.forEach(d => {
-            if (activeSeries.cpu) max = Math.max(max, d.cpu);
-            if (activeSeries.gpu) max = Math.max(max, d.gpu);
-            if (activeSeries.net) max = Math.max(max, d.net);
+            activeKeys.forEach(key => {
+                if (d[key] !== undefined) max = Math.max(max, d[key]);
+            });
         });
 
         const bufferedMax = max * 1.1; // Reduced buffer slightly
         const ceiling = Math.max(10, Math.ceil(bufferedMax));
         return { maxVal: ceiling };
-    }, [data, activeSeries]);
+    }, [data, activeKeys]);
 
-    const getPath = (key: 'cpu' | 'gpu' | 'net') => {
+    const getPath = (key: string) => {
         if (data.length < 2) return "";
 
         const winStart = now - selectedRange;
@@ -162,7 +203,10 @@ export default function DataAnalysisView() {
 
         data.forEach((point, i) => {
             const x = getX(point.timestamp);
-            const y = getY(point[key]);
+            const val = point[key];
+            if (val === undefined) return;
+
+            const y = getY(val);
 
             if (first) {
                 d += `M ${x} ${y}`;
@@ -170,7 +214,7 @@ export default function DataAnalysisView() {
             } else {
                 const prevPoint = data[i - 1];
                 const prevX = getX(prevPoint.timestamp);
-                const prevY = getY(prevPoint[key]);
+                const prevY = getY(prevPoint[key] as number);
 
                 // Curve smoothing
                 const cp1x = prevX + (x - prevX) / 2;
@@ -243,10 +287,26 @@ export default function DataAnalysisView() {
                         />
                     </div>
 
-                    <div className="flex gap-3">
-                        <TogglePill color="#06b6d4" label="CPU LOAD" active={activeSeries.cpu} onClick={() => setActiveSeries(s => ({ ...s, cpu: !s.cpu }))} />
-                        <TogglePill color="#d946ef" label="GPU LOAD" active={activeSeries.gpu} onClick={() => setActiveSeries(s => ({ ...s, gpu: !s.gpu }))} />
-                        <TogglePill color="#facc15" label="NETWORK" active={activeSeries.net} onClick={() => setActiveSeries(s => ({ ...s, net: !s.net }))} />
+                    <div className="flex gap-3 overflow-x-auto max-w-[60vw] pb-2 no-scrollbar">
+                        {selectedData.map(key => {
+                            const config = DATA_CONFIG[key] || { label: key, color: '#fff' };
+                            const isActive = !hiddenSeries.includes(key);
+                            return (
+                                <TogglePill
+                                    key={key}
+                                    color={config.color}
+                                    label={config.label}
+                                    active={isActive}
+                                    onClick={() => {
+                                        setHiddenSeries(prev =>
+                                            isActive
+                                                ? [...prev, key]
+                                                : prev.filter(k => k !== key)
+                                        );
+                                    }}
+                                />
+                            );
+                        })}
                     </div>
                 </div>
 
@@ -326,9 +386,23 @@ export default function DataAnalysisView() {
 
                         {/* Lines Group with ClipPath */}
                         <g clipPath="url(#chart-area)">
-                            {activeSeries.cpu && <path d={getPath('cpu')} fill="none" stroke="#06b6d4" strokeWidth="2" strokeLinecap="round" className="drop-shadow-[0_0_8px_rgba(6,182,212,0.8)]" />}
-                            {activeSeries.gpu && <path d={getPath('gpu')} fill="none" stroke="#d946ef" strokeWidth="2" strokeLinecap="round" className="drop-shadow-[0_0_8px_rgba(217,70,239,0.8)]" />}
-                            {activeSeries.net && <path d={getPath('net')} fill="none" stroke="#facc15" strokeWidth="2" strokeDasharray="6,4" className="drop-shadow-[0_0_8px_rgba(250,204,21,0.6)]" />}
+                            {activeKeys.map(key => {
+                                const config = DATA_CONFIG[key] || { color: '#fff' };
+                                return (
+                                    <path
+                                        key={key}
+                                        d={getPath(key)}
+                                        fill="none"
+                                        stroke={config.color}
+                                        strokeWidth="2"
+                                        strokeLinecap="round"
+                                        className="transition-all duration-300"
+                                        style={{
+                                            filter: `drop-shadow(0 0 4px ${config.color}80)`
+                                        }}
+                                    />
+                                );
+                            })}
                         </g>
 
                         {/* Hover Interaction */}
@@ -344,13 +418,15 @@ export default function DataAnalysisView() {
                                     strokeDasharray="4,4"
                                     opacity="0.5"
                                 />
-                                {(['cpu', 'gpu', 'net'] as const).map(key => {
-                                    if (!activeSeries[key]) return null;
-                                    const cx = ((data[hoveredIndex].timestamp - (now - selectedRange)) / selectedRange) * VIEW_WIDTH;
-                                    const cy = CHART_HEIGHT - (data[hoveredIndex][key] / maxVal) * CHART_HEIGHT;
+                                {activeKeys.map(key => {
+                                    const val = data[hoveredIndex][key];
+                                    if (val === undefined) return null;
 
-                                    const color = key === 'cpu' ? '#06b6d4' : key === 'gpu' ? '#d946ef' : '#facc15';
-                                    return <circle key={key} cx={cx} cy={cy} r="4" fill="black" stroke={color} strokeWidth="2" clipPath="url(#chart-area)" />;
+                                    const cx = ((data[hoveredIndex].timestamp - (now - selectedRange)) / selectedRange) * VIEW_WIDTH;
+                                    const cy = CHART_HEIGHT - (val / maxVal) * CHART_HEIGHT;
+                                    const config = DATA_CONFIG[key] || { color: '#fff' };
+
+                                    return <circle key={key} cx={cx} cy={cy} r="4" fill="black" stroke={config.color} strokeWidth="2" clipPath="url(#chart-area)" />;
                                 })}
                             </g>
                         )}
@@ -358,13 +434,20 @@ export default function DataAnalysisView() {
 
                     {/* Tooltip */}
                     {hoveredIndex !== null && data[hoveredIndex] && (
-                        <div className="absolute top-4 right-4 bg-black/90 backdrop-blur-md border border-white/10 p-4 rounded-xl shadow-2xl z-50 pointer-events-none">
+                        <div className="absolute top-4 right-4 bg-black/90 backdrop-blur-md border border-white/10 p-4 rounded-xl shadow-2xl z-50 pointer-events-none max-h-[80%] overflow-y-auto custom-scrollbar">
                             <div className="text-[10px] text-zinc-500 font-mono mb-2">
                                 {new Date(data[hoveredIndex].timestamp).toLocaleTimeString()}
                             </div>
-                            {activeSeries.cpu && <div className="text-cyan-400 font-mono text-sm">CPU: {data[hoveredIndex].cpu.toFixed(1)}%</div>}
-                            {activeSeries.gpu && <div className="text-fuchsia-400 font-mono text-sm">GPU: {data[hoveredIndex].gpu.toFixed(1)}%</div>}
-                            {activeSeries.net && <div className="text-yellow-400 font-mono text-sm">NET: {data[hoveredIndex].net.toFixed(1)} MB/s</div>}
+                            {activeKeys.map(key => {
+                                const config = DATA_CONFIG[key] || { label: key, color: '#fff' };
+                                const val = data[hoveredIndex][key];
+                                return (
+                                    <div key={key} className="flex gap-4 justify-between font-mono text-xs mb-1">
+                                        <span style={{ color: config.color }}>{config.label}:</span>
+                                        <span className="text-white">{val.toFixed(1)}</span>
+                                    </div>
+                                );
+                            })}
                         </div>
                     )}
                 </div>

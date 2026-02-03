@@ -9,6 +9,7 @@ type ViewType = 'dashboard' | 'analysis';
 
 function App() {
   const [currentView, setCurrentView] = useState<ViewType>('dashboard');
+  const [selectedData, setSelectedData] = useState<string[]>(['cpu_util', 'gpu_util', 'net_down']);
 
   return (
     <div className="flex w-screen h-screen overflow-hidden scanlines relative text-white selection:bg-aether-cyan selection:text-black">
@@ -26,7 +27,7 @@ function App() {
           <div className="w-full h-full p-6 pr-0 flex gap-6">
             {/* Main Chart Card */}
             <div className="flex-1 min-w-0">
-              <DataAnalysisView />
+              <DataAnalysisView selectedData={selectedData} />
             </div>
           </div>
         )}
@@ -38,7 +39,16 @@ function App() {
       ) : (
         /* Analysis View: Floating Right Card */
         <div className="w-[25%] min-w-[320px] p-6 h-full flex-shrink-0">
-          <AnalysisParameters />
+          <AnalysisParameters
+            selectedData={selectedData}
+            onToggle={(id) => {
+              setSelectedData(prev =>
+                prev.includes(id)
+                  ? prev.filter(x => x !== id)
+                  : [...prev, id]
+              );
+            }}
+          />
         </div>
       )}
     </div>
