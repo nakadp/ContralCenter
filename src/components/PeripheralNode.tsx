@@ -1,14 +1,9 @@
 import React from 'react';
 import { Handle, Position, type NodeProps, type Node } from '@xyflow/react';
-import { Mouse, Keyboard, Server, HelpCircle } from 'lucide-react';
+import { Mouse, Keyboard, Server, HelpCircle, Monitor, Speaker } from 'lucide-react';
 import { motion } from 'framer-motion';
 
-// Define the custom data type for this node
-interface PeripheralNodeData extends Record<string, unknown> {
-    label: string;
-    icon: string;
-}
-
+// ... (interface)
 
 const PeripheralNode = ({ data, selected }: NodeProps<Node<PeripheralNodeData>>) => {
     // Map icon string to component
@@ -27,7 +22,10 @@ const PeripheralNode = ({ data, selected }: NodeProps<Node<PeripheralNodeData>>)
         switch (data.icon) {
             case 'mouse': return <Mouse {...commonProps} />;
             case 'keyboard': return <Keyboard {...commonProps} />;
-            case 'dock': return <Server {...commonProps} />;
+            case 'monitor': return <Monitor {...commonProps} />;
+            case 'audio': return <Speaker {...commonProps} />;
+            case 'dock': // Fallthrough for dock/hub icons
+            case 'hub': return <Server {...commonProps} />;
             default: return <HelpCircle {...commonProps} />;
         }
     };
@@ -102,6 +100,26 @@ const PeripheralNode = ({ data, selected }: NodeProps<Node<PeripheralNodeData>>)
                         }}
                     />
                 </div>
+
+                {/* 6. Hub Source Handles (Right Side) - For Docks/Hubs */}
+                {data.isHub && (
+                    <div className="absolute top-1/2 -translate-y-1/2 -right-6 flex flex-col justify-center items-center z-30">
+                        <Handle
+                            type="source"
+                            position={Position.Right}
+                            id="port-source-0"
+                            className={`!relative !w-3 !h-3 rounded-full !border-[1.5px] transition-all duration-300 hover:scale-150`}
+                            style={{
+                                left: 'auto',
+                                right: 'auto',
+                                transform: 'none',
+                                borderColor: selected ? '#ff00e5' : '#00f2ff',
+                                backgroundColor: selected ? '#ff00e5' : '#00f2ff',
+                                boxShadow: selected ? '0 0 10px #ff00e5' : '0 0 10px #00f2ff'
+                            }}
+                        />
+                    </div>
+                )}
             </div>
 
             {/* Bottom Text */}

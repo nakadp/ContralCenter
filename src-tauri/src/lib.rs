@@ -1,9 +1,14 @@
+mod device_manager;
 mod system_monitor;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .manage(system_monitor::SystemMonitorState::new())
+        .invoke_handler(tauri::generate_handler![
+            device_manager::get_connected_devices,
+            device_manager::disable_device
+        ])
         .setup(|app| {
             #[cfg(debug_assertions)]
             {

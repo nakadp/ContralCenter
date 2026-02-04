@@ -16,7 +16,7 @@ const PulseEdge = ({ id, sourceX, sourceY, targetX, targetY, sourcePosition, tar
     const [edgePath] = getSmoothStepPath({
         sourceX: sx, sourceY: sy, sourcePosition,
         targetX: tx, targetY: ty, targetPosition,
-        borderRadius: 36, // Reduced by 10% (was 40)
+        borderRadius: 45, // Updated to 45 as requested
     });
 
     // 2. Data-driven logic
@@ -159,9 +159,10 @@ const PulseEdge = ({ id, sourceX, sourceY, targetX, targetY, sourcePosition, tar
                 stroke="none"
                 style={{ opacity: 0, pointerEvents: 'none' }}
                 aria-hidden="true"
+                shapeRendering="geometricPrecision"
             />
 
-            {/* 
+            {/*
         LAYER 1: The Containment Pipe (Backing)
       */}
             <path
@@ -173,9 +174,10 @@ const PulseEdge = ({ id, sourceX, sourceY, targetX, targetY, sourcePosition, tar
                 fill="none"
                 strokeOpacity={0.9}
                 style={{ strokeLinecap: 'round' }}
+                shapeRendering="geometricPrecision"
             />
 
-            {/* 
+            {/*
         LAYER 2: Global Atmospheric Glow (Static Halo - Restored for base color band)
       */}
             <path
@@ -185,9 +187,10 @@ const PulseEdge = ({ id, sourceX, sourceY, targetX, targetY, sourcePosition, tar
                 stroke={activeColor}
                 strokeOpacity={0.3 * glowMultiplier} // Increased from 0.1 to restore "color band" presence
                 className="blur-md"
+                shapeRendering="geometricPrecision"
             />
 
-            {/* 
+            {/*
         LAYER 4: The Solid Pipe Structure (Glass Tube)
       */}
             <path
@@ -196,9 +199,10 @@ const PulseEdge = ({ id, sourceX, sourceY, targetX, targetY, sourcePosition, tar
                 strokeWidth={10}
                 stroke={activeColor}
                 strokeOpacity={0.4 * glowMultiplier} // Increased significantly to be the visible "base"
+                shapeRendering="geometricPrecision"
             />
 
-            {/* 
+            {/*
         LAYER 5: The Electric Current (Electric Jitter)
         Recreation of reference layers but dimmed:
       */}
@@ -211,6 +215,7 @@ const PulseEdge = ({ id, sourceX, sourceY, targetX, targetY, sourcePosition, tar
                 stroke={activeColor}
                 strokeWidth={4}
                 style={{ filter: 'blur(4px)', opacity: 0.3 * glowMultiplier }} // Reduced from 0.5
+                shapeRendering="geometricPrecision"
             />
 
             {/* Main Beam (Layer 2 in reference equivalent) - Dimmed */}
@@ -221,6 +226,7 @@ const PulseEdge = ({ id, sourceX, sourceY, targetX, targetY, sourcePosition, tar
                 stroke={activeColor}
                 strokeWidth={2}
                 style={{ filter: 'blur(1px)', opacity: 0.6 * glowMultiplier }} // Reduced from 0.8
+                shapeRendering="geometricPrecision"
             />
 
             {/* Core Core (Layer 1 almost) - Dimmed & removed drop-shadow bloom */}
@@ -237,6 +243,7 @@ const PulseEdge = ({ id, sourceX, sourceY, targetX, targetY, sourcePosition, tar
                     opacity: 0.8 * glowMultiplier, // Reduced from 1.0
                     vectorEffect: 'non-scaling-stroke'
                 }}
+                shapeRendering="geometricPrecision"
             />
 
         </>
