@@ -1,21 +1,33 @@
 import React from 'react';
 import { Handle, Position, type NodeProps, type Node } from '@xyflow/react';
-import { Mouse, Keyboard, Server, HelpCircle, Monitor, Speaker } from 'lucide-react';
+import { Mouse, Keyboard, Server, HelpCircle, Monitor, Speaker, HardDrive, Smartphone, Printer, Cpu, Wifi, Ban } from 'lucide-react';
 import { motion } from 'framer-motion';
 
-// ... (interface)
+interface PeripheralNodeData {
+    label: string;
+    icon: string;
+    isHub: boolean;
+    status: string;
+    hardwareId?: string;
+    batteryLevel?: number;
+    isDisabled?: boolean;
+    [key: string]: unknown;
+}
 
 const PeripheralNode = ({ data, selected }: NodeProps<Node<PeripheralNodeData>>) => {
     // Map icon string to component
     const getIcon = () => {
-        const color = selected ? '#ff00e5' : '#00f2ff';
-        const shadowColor = selected ? 'rgba(255, 0, 229, 0.8)' : 'rgba(0, 242, 255, 0.8)';
+        const isNodeDisabled = data.isDisabled;
+        const color = isNodeDisabled ? '#525252' : (selected ? '#ff00e5' : '#00f2ff');
+        const shadowColor = isNodeDisabled ? 'rgba(0,0,0,0)' : (selected ? 'rgba(255, 0, 229, 0.8)' : 'rgba(0, 242, 255, 0.8)');
+
         const commonProps = {
             className: "w-20 h-20 transition-colors duration-300",
             style: {
-                filter: `drop-shadow(0 0 10px ${shadowColor})`,
+                filter: isNodeDisabled ? 'none' : `drop-shadow(0 0 10px ${shadowColor})`,
                 strokeWidth: 1.5,
-                color: color
+                color: color,
+                opacity: isNodeDisabled ? 0.5 : 1
             }
         };
 
@@ -24,8 +36,13 @@ const PeripheralNode = ({ data, selected }: NodeProps<Node<PeripheralNodeData>>)
             case 'keyboard': return <Keyboard {...commonProps} />;
             case 'monitor': return <Monitor {...commonProps} />;
             case 'audio': return <Speaker {...commonProps} />;
-            case 'dock': // Fallthrough for dock/hub icons
+            case 'dock':
             case 'hub': return <Server {...commonProps} />;
+            case 'drive': return <HardDrive {...commonProps} />;
+            case 'phone': return <Smartphone {...commonProps} />;
+            case 'printer': return <Printer {...commonProps} />;
+            case 'cpu': return <Cpu {...commonProps} />;
+            case 'network': return <Wifi {...commonProps} />;
             default: return <HelpCircle {...commonProps} />;
         }
     };
@@ -46,7 +63,8 @@ const PeripheralNode = ({ data, selected }: NodeProps<Node<PeripheralNodeData>>)
                     style={{
                         backgroundImage: selected
                             ? 'linear-gradient(to bottom right, #ff00e5, #ffffff, #ff00e5)'
-                            : 'linear-gradient(to bottom right, #00f2ff, #ffffff, #00f2ff)'
+                            : 'linear-gradient(to bottom right, #00f2ff, #ffffff, #00f2ff)',
+                        filter: data.isDisabled ? 'grayscale(100%) opacity(30%)' : 'none'
                     }}
                 >
                     {/* 2. Combined Shadow Layer */}
@@ -125,17 +143,25 @@ const PeripheralNode = ({ data, selected }: NodeProps<Node<PeripheralNodeData>>)
             {/* Bottom Text */}
             <div className="text-center leading-none mt-4">
                 <p
-                    className="text-[13px] font-bold text-white tracking-[0.1em] transition-all duration-300"
-                    style={{ filter: selected ? 'drop-shadow(0 0 8px rgba(255,0,229,0.8))' : 'drop-shadow(0 0 8px rgba(0,242,255,0.8))' }}
+                    className={`text-[13px] font-bold tracking-[0.1em] transition-all duration-300 ${data.isDisabled ? 'text-gray-500' : 'text-white'}`}
+                    style={{ filter: (!data.isDisabled && selected) ? 'drop-shadow(0 0 8px rgba(255,0,229,0.8))' : (!data.isDisabled ? 'drop-shadow(0 0 8px rgba(0,242,255,0.8))' : 'none') }}
                 >
                     {data.label}
                 </p>
                 <p
-                    className={`text-[10px] font-mono tracking-wider mt-1 scale-90 transition-colors duration-300 ${selected ? 'text-fuchsia-200/80' : 'text-cyan-200/80'}`}
+                    className={`text-[10px] font-mono tracking-wider mt-1 scale-90 transition-colors duration-300 ${data.isDisabled ? 'text-red-900' : (selected ? 'text-fuchsia-200/80' : 'text-cyan-200/80')
+                        }`}
                 >
-                    (Connected)
+                    {data.isDisabled ? '(DISABLED)' : '(Connected)'}
                 </p>
             </div>
+
+            {/* Disabled Overlay Icon */}
+            {data.isDisabled && (
+                <div className="absolute inset-0 flex items-center justify-center z-50 pointer-events-none">
+                    <Ban className="w-16 h-16 text-red-500/50" />
+                </div>
+            )}
         </div>
     );
 };

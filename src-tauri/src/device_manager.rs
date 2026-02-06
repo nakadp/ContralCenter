@@ -19,41 +19,91 @@ pub struct ConnectedDevice {
 
 #[tauri::command]
 pub fn get_connected_devices() -> Result<Vec<ConnectedDevice>, String> {
-    // v4.1 ULTRA-STRICT PROTOCOL
-    // Goal: ONLY Mouse, Keyboard, Monitor, Audio, and Physical Hubs.
-    // Explicitly REMOVES generic HID, System Devices, and Virtual Drivers.
+    // v4.1 ULTRA-STRICT PROTOCOL + LOGICAL DE-DUPLICATION
+    // Goal: Clean topology by collapsing logical interfaces into physical devices.
     let ps_script = r#"
-        # 1. Fetch Candidates (Present Only)
-        $all = Get-PnpDevice -PresentOnly | Select-Object InstanceId, ParentId, Class, FriendlyName, Status, ConfigManagerErrorCode, HardwareID
+        # 1. Fetch Candidates (Present Only) with extra properties
+        # HardwareID is an array, we select the first one usually. ContainerId is crucial for physical grouping.
+        $all = Get-PnpDevice -PresentOnly | Select-Object InstanceId, ParentId, Class, FriendlyName, Status, ConfigManagerErrorCode, HardwareID, Manufacturer, ContainerId
 
-        # 2. ULTRA-STRICT FILTERING
-        # We only define specific Classes we want.
-        
-        $cleanList = $all | Where-Object {
-            # Must be Healthy
+        # 2. PRE-FILTERING (Strict Class List)
+        $candidates = $all | Where-Object {
             ($_.ConfigManagerErrorCode -eq 0) -and
-            
             (
-                # CASE A: Peripherals (Strict Class Match)
                 ($_.Class -match '^(Mouse|Keyboard|Monitor|Media)$') -or
-                
-                # CASE B: Physical Hubs (USB Class + 'Hub' in Name)
-                # We exclude "Root Hub" because that's usually the Motherboard controller, user considers that "Host PC".
-                # We want external hubs (e.g. "Generic USB Hub", "SuperSpeed Hub").
                 (($_.Class -eq 'USB') -and ($_.FriendlyName -match 'Hub') -and ($_.FriendlyName -notmatch 'Root Hub'))
-            ) -and
+            )
+        }
 
-            # CASE C: Audio Filtering (Remove internal/virtual noise)
-            # Remove "High Definition Audio" (usually internal/HDMI placeholder) unless specific logic demands.
-            # For now, we trust 'Media' class but filter generic "Microsoft" drivers if possible.
+        # 3. LOGICAL DE-DUPLICATION (Container Grouping)
+        # Many physical devices (Keyboards, Mice) expose multiple HID endpoints.
+        # They all share the same 'ContainerId'. We must collapse them.
+        
+        $unique_physical_devices = @()
+        $grouped = $candidates | Group-Object ContainerId
+
+        foreach ($group in $grouped) {
+            # Skip if ContainerId is null/empty (rare, but treat as individual)
+            if (-not $group.Name) {
+                $unique_physical_devices += $group.Group
+                continue
+            }
+
+            # Strategy: Pick the "Best" Representative for this Container
+            $devices = $group.Group
+            
+            # A. If there's only one, keep it.
+            if ($devices.Count -eq 1) {
+                $unique_physical_devices += $devices[0]
+                continue
+            }
+
+            # B. Multiple devices in one physical shell. Find the "Real" one.
+            # Hierarchy of importance:
+            # 1. Non-Microsoft Manufacturer (e.g., "Logitech", "Razer")
+            # 2. FriendlyName excludes "HID Keyboard Device"
+            # 3. If all else fails, pick the first one.
+
+            $best = $null
+            
+            # Priority 1: Smart Name (Not generic HID)
+            $named = $devices | Where-Object { $_.FriendlyName -notmatch 'HID Keyboard Device|HID-compliant' }
+            if ($named) {
+                # If multiple smart names, pick first.
+                if ($named -is [array]) { $best = $named[0] } else { $best = $named }
+            }
+            
+            # Priority 2: Manufacturer specific (Not Microsoft/Standard)
+            if (-not $best) {
+                $branded = $devices | Where-Object { $_.Manufacturer -and ($_.Manufacturer -notmatch 'Microsoft|Standard System Devices') }
+                if ($branded) {
+                    if ($branded -is [array]) { $best = $branded[0] } else { $best = $branded }
+                }
+            }
+
+            # Priority 3: Fallback (Just take the Main HID interface)
+            if (-not $best) {
+                $best = $devices[0]
+            }
+            
+            # === SPECIAL OVERRIDE FOR TYPE ===
+            # If we collapsed a group and it had a Keyboard, call it a Keyboard even if we picked a Mouse endpoint (combo devices).
+            # Simple check: If any in group is Keyboard, force class/type to Keyboard if current is less specific.
+            if ($devices.Class -contains 'Keyboard') {
+                $best.Class = 'Keyboard' 
+            }
+
+            $unique_physical_devices += $best
+        }
+
+        # 4. FINAL CLEANUP (Audio & Virtuals)
+        $cleanList = $unique_physical_devices | Where-Object {
+            # Remove virtual audio endpoints usually associated with Monitros (NVIDIA) or internal
             ($_.FriendlyName -notmatch 'NVIDIA High Definition Audio|Microsoft|Virtual|Sonic|Steam')
         }
-        
-        # 3. Battery Info
-        $batteries = Get-CimInstance -ClassName Win32_Battery -ErrorAction SilentlyContinue
 
+        # 5. Output Construction
         $output = @()
-        
         foreach ($dev in $cleanList) {
             $type = "other"
             if ($dev.Class -eq "Mouse") { $type = "mouse" }
@@ -62,12 +112,11 @@ pub fn get_connected_devices() -> Result<Vec<ConnectedDevice>, String> {
             elseif ($dev.Class -eq "Media") { $type = "audio" }
             elseif ($dev.FriendlyName -match "Hub") { $type = "hub" }
 
-            # Battery Level
-            $batLevel = $null
-            # (Battery logic preserved but Class 'Battery' was removed from strict list above. 
-            #  If user wants UPS, we need to re-add Class 'Battery' to whitelist. 
-            #  User asked for Mouse/KB/Audio/Monitor. I will keep Power separate or implicit.)
-            
+            $hwId = ""
+            if ($dev.HardwareID -and $dev.HardwareID.Count -gt 0) {
+                $hwId = $dev.HardwareID[0]
+            }
+
             $output += @{
                 InstanceId = $dev.InstanceId
                 FriendlyName = $dev.FriendlyName
@@ -75,9 +124,9 @@ pub fn get_connected_devices() -> Result<Vec<ConnectedDevice>, String> {
                 ParentId = $dev.ParentId
                 Status = $dev.Status.ToString()
                 DeviceType = $type
-                HardwareID = if ($dev.HardwareID) { $dev.HardwareID[0] } else { "" }
+                HardwareID = $hwId
                 ConfigCode = $dev.ConfigManagerErrorCode
-                BatteryLevel = $batLevel
+                BatteryLevel = $null
             }
         }
 

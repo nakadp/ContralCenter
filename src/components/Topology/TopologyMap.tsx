@@ -12,12 +12,13 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { invoke } from '@tauri-apps/api/core';
-import { ShieldAlert, RefreshCw, Battery, Info } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import SystemMonitor from '../UI/SystemMonitor';
 import HostNode from '../HostNode';
 import PeripheralNode from '../PeripheralNode';
 import PulseEdge from '../PulseEdge';
 import DotGrid from '../background/DotGrid';
+import DeviceDetailsPanel from './DeviceDetailsPanel';
 
 // Define the backend device interface (PascalCase from Rust/PowerShell)
 interface ConnectedDevice {
@@ -64,6 +65,26 @@ export default function TopologyMap() {
     const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
     const [isRefreshing, setIsRefreshing] = useState(false);
 
+    // --- Persistence State ---
+    const [customNames, setCustomNames] = useState<Record<string, string>>(() => {
+        try { return JSON.parse(localStorage.getItem('topo_custom_names') || '{}'); } catch { return {}; }
+    });
+    const [customIcons, setCustomIcons] = useState<Record<string, string>>(() => {
+        try { return JSON.parse(localStorage.getItem('topo_custom_icons') || '{}'); } catch { return {}; }
+    });
+    const [hiddenDevices, setHiddenDevices] = useState<string[]>(() => {
+        try { return JSON.parse(localStorage.getItem('topo_hidden_devices') || '[]'); } catch { return []; }
+    });
+    const [disabledDevices, setDisabledDevices] = useState<string[]>(() => {
+        try { return JSON.parse(localStorage.getItem('topo_disabled_devices') || '[]'); } catch { return []; }
+    });
+
+    // Save effects
+    useEffect(() => localStorage.setItem('topo_custom_names', JSON.stringify(customNames)), [customNames]);
+    useEffect(() => localStorage.setItem('topo_custom_icons', JSON.stringify(customIcons)), [customIcons]);
+    useEffect(() => localStorage.setItem('topo_hidden_devices', JSON.stringify(hiddenDevices)), [hiddenDevices]);
+    useEffect(() => localStorage.setItem('topo_disabled_devices', JSON.stringify(disabledDevices)), [disabledDevices]);
+
     const nodeTypes = useMemo(() => ({
         host: HostNode,
         peripheral: PeripheralNode,
@@ -78,8 +99,7 @@ export default function TopologyMap() {
         const newNodes: Node[] = [];
         const newEdges: Edge[] = [];
 
-        // Map ID to Device for quick parent lookup
-        const deviceMap = new Map(deviceList.map(d => [d.InstanceId, d]));
+
 
         // --- 1. RECURSIVE PRUNING LOGIC (Leaf-to-Root) ---
         // We only want to show Hubs that lead to a valid endpoint (Leaf).
@@ -154,7 +174,6 @@ export default function TopologyMap() {
                 yPos = (index - 2) * LAYOUT.VERTICAL_SPACING; // Rough spread
             } else {
                 // Attached to Hub
-                const parent = cleanMap.get(parentId);
                 // Parent layout isn't fully resolved in this simple pass, assumes 2-tier max usually.
                 // For v4.0 we stick to simple Hub logic:
                 xPos = LAYOUT.DEVICE_X + 250;
@@ -169,16 +188,20 @@ export default function TopologyMap() {
 
             // Adjust for nested hubs if needed, but sticking to flat-ish visual for now.
 
+            // Apply Persistence Filters & Overrides
+            if (hiddenDevices.includes(d.InstanceId)) return; // Skip hidden devices
+
             newNodes.push({
                 id: d.InstanceId,
                 position: { x: xPos, y: yPos },
                 data: {
-                    label: d.FriendlyName,
-                    icon: d.DeviceType,
+                    label: customNames[d.InstanceId] || d.FriendlyName,
+                    icon: customIcons[d.InstanceId] || d.DeviceType,
                     isHub: d.DeviceType === 'hub',
                     status: d.Status,
                     hardwareId: d.HardwareID,
-                    batteryLevel: d.BatteryLevel
+                    batteryLevel: d.BatteryLevel,
+                    isDisabled: disabledDevices.includes(d.InstanceId)
                 },
                 type: 'peripheral',
             });
@@ -225,7 +248,7 @@ export default function TopologyMap() {
 
         setNodes([hostNode, ...newNodes]);
         setEdges(newEdges);
-    }, [setNodes, setEdges]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [setNodes, setEdges, customNames, customIcons, hiddenDevices, disabledDevices]);
 
     // Fetch devices
     const fetchDevices = async () => {
@@ -263,16 +286,51 @@ export default function TopologyMap() {
         setSelectedNodeId(null);
     };
 
-    const handleDisableDevice = async () => {
+    // --- Actions ---
+    const handleRename = (newName: string) => {
+        if (selectedNodeId) {
+            setCustomNames(prev => ({ ...prev, [selectedNodeId]: newName }));
+        }
+    };
+
+    const handleIconChange = (newIcon: string) => {
+        if (selectedNodeId) {
+            setCustomIcons(prev => ({ ...prev, [selectedNodeId]: newIcon }));
+        }
+    };
+
+    const handleToggleDisable = async () => {
         if (!selectedNodeId) return;
+
+        const isCurrentlyDisabled = disabledDevices.includes(selectedNodeId);
+
+        // Optimistic UI update
+        if (isCurrentlyDisabled) {
+            setDisabledDevices(prev => prev.filter(id => id !== selectedNodeId));
+        } else {
+            setDisabledDevices(prev => [...prev, selectedNodeId]);
+        }
+
         try {
-            console.log(`Controls: Disabling device ${selectedNodeId} (UAC Triggered)...`);
-            await invoke('disable_device', { instanceId: selectedNodeId });
-            alert("Commands sent! Please approve the requested permissions in the User Account Control (UAC) prompt window to complete the operation.");
-            // Ideally re-fetch after a delay to show status update, but disable might take time/restart
+            if (isCurrentlyDisabled) {
+                console.log(`Controls: Enabling device ${selectedNodeId}...`);
+                // await invoke('enable_device', { instanceId: selectedNodeId }); // If backend supports
+            } else {
+                console.log(`Controls: Disabling device ${selectedNodeId}...`);
+                await invoke('disable_device', { instanceId: selectedNodeId });
+                alert("Disable command sent. Please check UAC prompt.");
+            }
         } catch (e) {
             console.error("Controls Error:", e);
-            alert("Failed to disable device: " + e);
+        }
+    };
+
+    const handleDelete = () => {
+        if (selectedNodeId) {
+            if (confirm("Are you sure you want to hide this device from the map? It will only reappear if you clear the hidden list or reset configuration.")) {
+                setHiddenDevices(prev => [...prev, selectedNodeId]);
+                setSelectedNodeId(null);
+            }
         }
     };
 
@@ -357,9 +415,10 @@ export default function TopologyMap() {
             </ReactFlow>
 
             {/* Control Panel Overlay */}
-            <div className="absolute bottom-8 right-8 flex flex-col gap-4 pointer-events-none">
-                {/* Scan Button */}
-                <div className="pointer-events-auto">
+            <div className="absolute top-0 right-0 h-full flex pointer-events-none z-50">
+
+                {/* Scan Button (Floating) */}
+                <div className="absolute bottom-8 right-8 pointer-events-auto">
                     <button
                         onClick={() => fetchDevices()}
                         disabled={isRefreshing}
@@ -370,41 +429,26 @@ export default function TopologyMap() {
                     </button>
                 </div>
 
-                {/* Device Controls */}
+                {/* Device Details Panel */}
                 {selectedNode && selectedNode.id !== 'host' && (
-                    <div className="pointer-events-auto p-4 bg-black/80 backdrop-blur-xl border border-white/10 rounded-xl w-72 animate-in slide-in-from-right-10 fade-in duration-300">
-                        <h3 className="text-white font-bold tracking-widest text-sm mb-1 uppercase truncate">
-                            {selectedDeviceData.label}
-                        </h3>
-                        <p className="text-[10px] text-white/50 font-mono mb-2 uppercase break-all">
-                            ID: {selectedNode.id}
-                        </p>
-
-                        {/* Hardware Details */}
-                        <div className="mb-4 space-y-2">
-                            <div className="flex items-start gap-2 bg-white/5 p-2 rounded text-[10px] font-mono text-cyan-200/80">
-                                <Info className="w-3 h-3 mt-0.5 shrink-0" />
-                                <span className="break-all">{selectedDeviceData.hardwareId || 'N/A'}</span>
-                            </div>
-
-                            {selectedDeviceData.batteryLevel !== undefined && (
-                                <div className="flex items-center gap-2 bg-green-900/20 p-2 rounded text-xs font-mono text-green-400">
-                                    <Battery className="w-4 h-4" />
-                                    <span>Power: {selectedDeviceData.batteryLevel}%</span>
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="flex flex-col gap-2">
-                            <button
-                                onClick={handleDisableDevice}
-                                className="group flex items-center justify-between px-3 py-2 bg-red-900/20 hover:bg-red-500/20 border border-red-500/30 hover:border-red-500 rounded-lg transition-all"
-                            >
-                                <span className="text-red-400 font-mono text-xs uppercase group-hover:text-red-300">Interrupt Signal</span>
-                                <ShieldAlert className="w-4 h-4 text-red-500" />
-                            </button>
-                        </div>
-                    </div>
+                    <DeviceDetailsPanel
+                        nodeId={selectedNode.id}
+                        deviceData={{
+                            label: selectedDeviceData.label,
+                            hardwareId: selectedDeviceData.hardwareId,
+                            status: selectedDeviceData.status,
+                            batteryLevel: selectedDeviceData.batteryLevel,
+                            deviceType: (selectedNode.data as any).icon // Use the original or current icon data
+                        }}
+                        customName={customNames[selectedNode.id]}
+                        customIcon={customIcons[selectedNode.id]}
+                        isDisabled={disabledDevices.includes(selectedNode.id)}
+                        onClose={() => setSelectedNodeId(null)}
+                        onRename={handleRename}
+                        onIconChange={handleIconChange}
+                        onToggleDisable={handleToggleDisable}
+                        onDelete={handleDelete}
+                    />
                 )}
             </div>
         </div>
